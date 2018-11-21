@@ -1,5 +1,10 @@
 #!/usr/local/bin python3
 
+
+__author__ = 'duceppemo'
+__version__ = '0.1'
+
+
 import numpy as np
 import pandas as pd
 from os.path import basename
@@ -12,6 +17,7 @@ class Dendro(object):
         self.args = args
         self.input = args.input
         self.output = args.output
+        self.nj_flag = args.nj
 
         # data
         self.df = pd.DataFrame()
@@ -88,49 +94,34 @@ class Dendro(object):
         :return:
         """
 
-        # order data frame
-        t0 = time()
+        # order data frame (square matix)
         print("Sorting dataframe...", end="", flush=True)
         df = df.reindex(sorted(df.columns), axis=1)  # columns
         df = df.reindex(sorted(df.columns), axis=0)  # rows
-        print(" %s" % self.elapsed_time(time() - t0))
-
-        # For debug
-        # mini_df = df.ix[:5, :5]
-        # mini_df.to_csv('/media/30tb_raid10/db/salmonella_refseq/mash/test_dist.tsv', sep='\t')
-        # df = mini_df
 
         # Get labels for tree and figure
         labels = df.columns.tolist()
         labels[:] = ['\'{}\''.format(x) for x in labels]  # Add single quotes around labels to allow special characters
 
-        # Using scikit-bio  ##################
-        from skbio import DistanceMatrix
-        from skbio.tree import nj
+        # Using scipy -> Takes about 8s to run with ~9,000 Salmonella genomes (fasta)
+        self.make_hc_dendrogram(df, labels)
 
-        t0 = time()
-        print("Converting dataframe to DistanceMatrix object...", end="", flush=True)
-        dm = DistanceMatrix(df, labels)
-        print(" %s" % self.elapsed_time(time() - t0))
+        # # Save tree as figure
+        # t0 = time()
+        # print("Saving tree as pdf figure...", end="", flush=True)
+        # self.save_dendrogram_to_picture(linkage_matrix, labels)
+        # print(" %s" % self.elapsed_time(time() - t0))
 
-        t0 = time()
-        print("Creating nj tree...", end="", flush=True)
-        nw = nj(dm, result_constructor=str)
-        print(" %s" % self.elapsed_time(time() - t0))
-        name = basename(self.input).split('.')[0]  # input file name without extension
-        out_tree_file = self.output + '/' + name + '_nj.nwk'
-        with open(out_tree_file, 'w') as out:
-            out.write(nw)
+        # Using scikit-bio  -> Takes about 8h to run with ~9,000 Salmonella genomes (fasta)
+        if self.nj_flag:
+            self.make_nj_tree(df, labels)
 
-        # Using scipy  #######################
-        from scipy.cluster.hierarchy import dendrogram, linkage, to_tree
+    def make_hc_dendrogram(self, df, labels):
+        from scipy.cluster.hierarchy import linkage, to_tree
         from scipy.spatial.distance import squareform
 
         # Convert square matrix to condensed distance matrix
-        t0 = time()
-        print("Converting square matrix (dataframe) to condensed form...", end="", flush=True)
         dists = squareform(df)
-        print(" %s" % self.elapsed_time(time() - t0))
 
         # hierarchical clustering
         t0 = time()
@@ -151,20 +142,42 @@ class Dendro(object):
         with open(out_tree_file, 'w') as out:
             out.write(nw)
 
-        # # Create graph
-        # import matplotlib.pyplot as plt
-        # t0 = time()
-        # print("Saving tree as pdf figure...", end="", flush=True)
-        # fig, ax = plt.subplots(figsize=(len(labels) / 500, len(labels) / 100))  # width, height, in inches
-        #
-        # dendrogram(linkage_matrix, labels=labels, orientation='left', leaf_font_size=2)
-        #
-        # plt.title("Dendrogram")
-        # # plt.show()
-        # out_figure_file = self.output + '/' + name + '.pdf'
-        # plt.tight_layout(rect=[0, 0, 0.99, 1])  # leave space on the right for leaf labels [left, bottom, right, top]
-        # fig.savefig(out_figure_file)
-        # print(" %s" % self.elapsed_time(time() - t0))
+    def save_dendrogram_to_picture(self, linkage_matrix, labels):
+        from scipy.cluster.hierarchy import dendrogram
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(len(labels) / 500, len(labels) / 100))  # width, height, in inches
+
+        # Create dendrogram
+        dendrogram(linkage_matrix, labels=labels, orientation='left', leaf_font_size=2)
+
+        # Output file name
+        name = basename(self.input).split('.')[0]  # input file name without extension
+        out_figure_file = self.output + '/' + name + '.pdf'
+
+        # Customize the figure
+        plt.title("Dendrogram")
+        plt.tight_layout(rect=[0, 0, 0.99, 1])  # leave space on the right for leaf labels [left, bottom, right, top]
+
+        fig.savefig(out_figure_file)
+
+    def make_nj_tree(self, df, labels):
+        from skbio import DistanceMatrix
+        from skbio.tree import nj
+
+        t0 = time()
+        print("Converting dataframe to DistanceMatrix object...", end="", flush=True)
+        dm = DistanceMatrix(df, labels)
+        print(" %s" % self.elapsed_time(time() - t0))
+
+        t0 = time()
+        print("Creating nj tree...", end="", flush=True)
+        nw = nj(dm, result_constructor=str)
+        print(" %s" % self.elapsed_time(time() - t0))
+        name = basename(self.input).split('.')[0]  # input file name without extension
+        out_tree_file = self.output + '/' + name + '_nj.nwk'
+        with open(out_tree_file, 'w') as out:
+            out.write(nw)
 
     def getNewick(self, node, newick, parentdist, leaf_names):
         """
@@ -193,6 +206,7 @@ class Dendro(object):
 if __name__ == "__main__":
 
     from argparse import ArgumentParser
+    # https://docs.python.org/dev/library/argparse.html#action
 
     parser = ArgumentParser(description='Create dendrogram from a square distance matrix')
     parser.add_argument('-i', '--input', metavar='myfile.xlsx',
@@ -203,6 +217,11 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', metavar='Out folder',
                         required=True,
                         help='Folder to hold the result files')
+    # default=False is implied by action='store_true'
+    parser.add_argument('-n', '--nj', action='store_true',
+                        help='Output neighbour joining (nj) tree. Default "False".'
+                             'Warning: can take several hours to complete on big matrices'
+                             'e.g. it takes about 8h to run on a 9,000 x 9,000 matrix')
 
     # Get the arguments into an object
     arguments = parser.parse_args()
