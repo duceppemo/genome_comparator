@@ -77,7 +77,7 @@ function dist_it()
 
 export -f dist_it
 
-find "$read_folder" -type f -name "*.fna" |
+find "${baseDir}"/mash/sketches/ -type f -name "*.msh" |
     parallel    --bar \
                 --env dist_it \
                 --env baseDir \
