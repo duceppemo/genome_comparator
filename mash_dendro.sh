@@ -98,6 +98,13 @@ for i in $(find "${baseDir}"/mash/distances -type f -name "*_dist.tsv"); do
 done
 
 # Create NJ tree from matrix and save image and tree file
+[ -d "${baseDir}"/mash/tree ] || mkdir -p "${baseDir}"/mash/tree
+python3 ~/PycharmProjects/dendrogram_from_distance_matrix/dendrogram_from_distance_matrix.py \
+    -i "${baseDir}"/mash/all_dist.tsv \
+    -o "${baseDir}"/mash/tree \
+    --nj
+
+# Create NJ tree from matrix and save image and tree file
 Rscript --vanilla \
     /home/bioinfo/scripts/NJ_tree_from_distance_matrix.R \
     "${baseDir}"/mash/all_dist.tsv
