@@ -2,13 +2,20 @@
 
 
 __author__ = 'duceppemo'
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 import numpy as np
 import pandas as pd
 from os.path import basename
 from time import time
+from scipy.cluster.hierarchy import linkage, to_tree
+from scipy.spatial.distance import squareform
+from skbio import DistanceMatrix
+from skbio.tree import nj
+from sklearn import manifold
+from scipy.cluster.hierarchy import dendrogram
+import matplotlib.pyplot as plt
 
 
 class Dendro(object):
@@ -18,38 +25,64 @@ class Dendro(object):
         self.input = args.input
         self.output = args.output
         self.nj_flag = args.nj
+        self.pca_flag = args.pca
 
         # data
         self.df = pd.DataFrame()
+        self.labels = list()
 
         # Run all
         self.run()
 
     def run(self):
         start_time = time()
-        ext = basename(self.input).split('.')[-1]
 
         # Parse input file
         t0 = time()
         print("Parsing input file to pandas dataframe...", end="", flush=True)
-        if ext == 'xlsx' or ext == 'xls':
-            self.df = pd.read_excel(self.input, index_col=0, header=0)
-        elif ext == 'csv':
-            self.df = pd.read_csv(self.input, index_col=0, header=0)
-        elif ext == 'tsv':
-            self.df = pd.read_csv(self.input, index_col=0, header=0, sep='\t')
-        else:
-            raise Exception("Invalid input file type."
-                            "Input file should be in Excel ('.xlsx' or '.xls')"
-                            "or text format ('.csv' or '.tsv')")
-
-        print(" %s" % self.elapsed_time(time() - t0))
+        self.parse_input(self.input)
+        nrow, ncol = self.df.shape
+        print(" ({} x {}) {}".format(nrow, ncol, self.elapsed_time(time() - t0)))
 
         # Check sample names for illegal characters for the tree file
         # self.fix_names(self.df)
 
+        # Sort dataframe
+        print("Sorting dataframe...", end="", flush=True)
+        t0 = time()
+        self.sort_dataframe()
+        print(" %s" % self.elapsed_time(time() - t0))
+
+        # Get labels
+        print("Getting labels...", end="", flush=True)
+        t0 = time()
+        self.get_labels()
+        print(" %s" % self.elapsed_time(time() - t0))
+
         # Make tree from dataframe
-        self.do_it(self.df)
+        # Using scipy -> Takes about 8s to run with ~9,000 Salmonella genomes (fasta)
+        print("Making hierarchical clustering tree...", end="", flush=True)
+        t0 = time()
+        self.make_hc_dendrogram(self.df, self.labels)
+        print(" %s" % self.elapsed_time(time() - t0))
+
+        # # Save tree as figure
+        # t0 = time()
+        # print("Saving tree as pdf figure...", end="", flush=True)
+        # self.save_dendrogram_to_picture(linkage_matrix, labels)
+        # print(" %s" % self.elapsed_time(time() - t0))
+
+        # Make PCA
+        if self.pca_flag:
+            print("Making PCA...", end="", flush=True)
+            t0 = time()
+            self.make_pca(self.df)
+            print(" %s" % self.elapsed_time(time() - t0))
+
+        # Make tree from dataframe
+        # Using scikit-bio  -> Takes about 8h to run with ~9,000 Salmonella genomes (fasta)
+        if self.nj_flag:
+            self.make_nj_tree(self.df, self.labels)
 
         # Total time
         print("\nDone in %s" % self.elapsed_time(time() - start_time))
@@ -87,54 +120,64 @@ class Dendro(object):
         df.index = new_headers  # Change row names
         print(" %s" % self.elapsed_time(time() - t0))
 
-    def do_it(self, df):
+    def parse_input(self, input_file):
+        """
+        Parse input file into padans dataframe
+        :param input_file: input file (square matrix)
+        :return:
+        """
+        file_ext = basename(input_file).split('.')[-1]
+
+        if file_ext == 'xlsx' or file_ext == 'xls':
+            self.df = pd.read_excel(input_file, index_col=0, header=0)
+        elif file_ext == 'csv':
+            self.df = pd.read_csv(input_file, index_col=0, header=0)
+        elif file_ext == 'tsv':
+            self.df = pd.read_csv(input_file, index_col=0, header=0, sep='\t')
+        else:
+            raise Exception("Invalid input file type."
+                            "Input file should be in Excel ('.xlsx' or '.xls')"
+                            "or text format ('.csv' or '.tsv')")
+
+    def sort_dataframe(self):
         """
         Make tree from distance matrix
-        :param df:
         :return:
         """
 
         # order data frame (square matix)
-        print("Sorting dataframe...", end="", flush=True)
-        df = df.reindex(sorted(df.columns), axis=1)  # columns
-        df = df.reindex(sorted(df.columns), axis=0)  # rows
+        self.df = self.df.reindex(sorted(self.df.columns), axis='index')  # rows or index
+        self.df = self.df.reindex(sorted(self.df.columns), axis='columns')  # columns
+
+    def get_labels(self):
+        """
+        Get the column names from the pandas dataframe
+        :return:
+        """
 
         # Get labels for tree and figure
-        labels = df.columns.tolist()
-        labels[:] = ['\'{}\''.format(x) for x in labels]  # Add single quotes around labels to allow special characters
+        self.labels = self.df.columns.tolist()
 
-        # Using scipy -> Takes about 8s to run with ~9,000 Salmonella genomes (fasta)
-        self.make_hc_dendrogram(df, labels)
-
-        # # Save tree as figure
-        # t0 = time()
-        # print("Saving tree as pdf figure...", end="", flush=True)
-        # self.save_dendrogram_to_picture(linkage_matrix, labels)
-        # print(" %s" % self.elapsed_time(time() - t0))
-
-        # Using scikit-bio  -> Takes about 8h to run with ~9,000 Salmonella genomes (fasta)
-        if self.nj_flag:
-            self.make_nj_tree(df, labels)
+        # Add single quotes around labels to allow special characters
+        self.labels[:] = ['\'{}\''.format(x) for x in self.labels]
 
     def make_hc_dendrogram(self, df, labels):
-        from scipy.cluster.hierarchy import linkage, to_tree
-        from scipy.spatial.distance import squareform
+        """
+        Make hierarchical clustering tree (newick format)
+        :param df: pandas dataframe (square matrix)
+        :param labels: column names (same as row names, same order too)
+        :return:
+        """
 
-        # Convert square matrix to condensed distance matrix
+        # Convert square matrix to condensed matrix
         dists = squareform(df)
 
         # hierarchical clustering
-        t0 = time()
-        print("Making clusters...", end="", flush=True)
         linkage_matrix = linkage(dists, "ward")  # optimal_ordering=Ture is slow on large datasets
-        print(" %s" % self.elapsed_time(time() - t0))
 
         # Create tree in Newick format
-        t0 = time()
-        print('Making dendrogram...', end="", flush=True)
         tree = to_tree(linkage_matrix, False)
         nw = self.getNewick(tree, "", tree.dist, labels)
-        print(" %s" % self.elapsed_time(time() - t0))
 
         # save tree to file
         name = basename(self.input).split('.')[0]  # input file name without extension
@@ -143,8 +186,12 @@ class Dendro(object):
             out.write(nw)
 
     def save_dendrogram_to_picture(self, linkage_matrix, labels):
-        from scipy.cluster.hierarchy import dendrogram
-        import matplotlib.pyplot as plt
+        """
+
+        :param linkage_matrix:
+        :param labels:
+        :return:
+        """
 
         fig, ax = plt.subplots(figsize=(len(labels) / 500, len(labels) / 100))  # width, height, in inches
 
@@ -162,8 +209,12 @@ class Dendro(object):
         fig.savefig(out_figure_file)
 
     def make_nj_tree(self, df, labels):
-        from skbio import DistanceMatrix
-        from skbio.tree import nj
+        """
+        Make Neighbour Joining tree
+        :param df: pandas dataframe (square matrix)
+        :param labels: column names (same as row names, same order too)
+        :return:
+        """
 
         t0 = time()
         print("Converting dataframe to DistanceMatrix object...", end="", flush=True)
@@ -202,6 +253,42 @@ class Dendro(object):
 
             return newick
 
+    def make_pca(self, df):
+        """
+
+        :param df: pandas dataframe (square matrix)
+        :param labels: column names (same as row names, same order too)
+        :return:
+        """
+
+        # dists = squareform(df)
+        # dm = DistanceMatrix(df, labels)
+        mds = manifold.MDS(n_components=2, dissimilarity="precomputed", random_state=6)
+        results = mds.fit(df)
+
+        fig, ax = plt.subplots()
+        coords = results.embedding_
+        plt.subplots_adjust(bottom=0.1)
+        plt.scatter(coords[:, 0], coords[:, 1], marker='o')
+
+        species = [x.split('_')[1] for x in self.labels]
+        for label, x, y in zip(species, coords[:, 0], coords[:, 1]):
+            plt.annotate(
+                label,
+                xy=(x, y), xytext=(-10, 10),
+                textcoords='offset points', ha='right', va='bottom', fontsize=6,
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+        # texts = [plt.text(x, y, label,
+        #                   ha='center', va='center') for label, x, y in zip(species, coords[:, 0], coords[:, 1])]
+        # from adjustText import adjust_text
+        # adjust_text(texts)
+
+        # Output file name
+        name = basename(self.input).split('.')[0]  # input file name without extension
+        out_figure_file = self.output + '/' + name + '_PCA.png'
+
+        fig.savefig(out_figure_file)
+
 
 if __name__ == "__main__":
 
@@ -218,10 +305,12 @@ if __name__ == "__main__":
                         required=True,
                         help='Folder to hold the result files')
     # default=False is implied by action='store_true'
-    parser.add_argument('-n', '--nj', action='store_true',
+    parser.add_argument('--nj', action='store_true',
                         help='Output neighbour joining (nj) tree. Default "False".'
                              'Warning: can take several hours to complete on big matrices'
                              'e.g. it takes about 8h to run on a 9,000 x 9,000 matrix')
+    parser.add_argument('--pca', action='store_true',
+                        help='Output 3D PCA. Default "False".')
 
     # Get the arguments into an object
     arguments = parser.parse_args()
