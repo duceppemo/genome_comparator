@@ -68,7 +68,8 @@ function dist_it()
 
     # remove paths in file names
     cat "${baseDir}"/mash/distances/"${sample}"_dist.tsv \
-        | sed -e "s%$read_folder/%%g" -e 's/.fna//g' -e 's/#query//'\
+        | awk -F $'\t' 'BEGIN {OFS = FS} {for(i=1; i <= NF; i++) {gsub("/.*/", "", $i)} print $0}' \
+        | sed -e 's/.fna//g' -e 's/#query//'\
         > "${baseDir}"/mash/distances/"${sample}"_dist.tsv.tmp
 
     mv "${baseDir}"/mash/distances/"${sample}"_dist.tsv.tmp \
@@ -102,9 +103,8 @@ done
 python3 ~/PycharmProjects/dendrogram_from_distance_matrix/dendrogram_from_distance_matrix.py \
     -i "${baseDir}"/mash/all_dist.tsv \
     -o "${baseDir}"/mash/tree \
-    --nj
+    --nj --pca
 
-# Create NJ tree from matrix and save image and tree file
 Rscript --vanilla \
     /home/bioinfo/scripts/NJ_tree_from_distance_matrix.R \
     "${baseDir}"/mash/all_dist.tsv
