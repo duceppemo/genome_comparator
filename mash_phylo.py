@@ -114,8 +114,7 @@ class MashPhylo(object):
         pathlib.Path(os.path.join(output, 'tree')).mkdir(parents=True, exist_ok=True)
 
     def sketch_it(self, info):
-        sample_name = info.sample_name
-        output_file = os.path.join(self.output, 'sketches', sample_name)
+        output_file = os.path.join(self.output, 'sketches', info.sample_name)
         info.sketch_file = output_file + '.msh'
 
         fasta_ext = ['fna', 'fasta', 'fa']
@@ -165,9 +164,7 @@ class MashPhylo(object):
                                '-l', list_file])
 
     def dist_it(self, info):
-        sample_name = info.sample_name
-        output_file = os.path.join(self.output, 'distances', sample_name) + '_dist.tsv'
-        info.dist_file = output_file
+        info.dist_file = os.path.join(self.output, 'distances', info.sample_name) + '_dist.tsv'
 
         proc = subprocess.Popen(['mash', 'dist',
                                  '-p', '1',
@@ -188,8 +185,8 @@ class MashPhylo(object):
         stdout = stdout.replace(folder2, b'')
 
         # Remove path and exention
-        pattern = re.compile(b'\..+?(?=\s)')
-        stdout = pattern.sub(b'', stdout)
+        ext = b'.' + info.file_type.encode('utf-8')
+        stdout = stdout.replace(ext, b'').replace(b'.gz', b'')
 
         # If fastq, there will be underscores to remove
         # Remove from underscore to first TAB character
