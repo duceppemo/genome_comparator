@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='genome_comparator',
-    version='0.1',
+    version='0.2',
     packages=[''],
     url='https://github.com/duceppemo/genome_comparator',
     license='MIT',

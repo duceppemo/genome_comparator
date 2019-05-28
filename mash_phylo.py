@@ -5,8 +5,18 @@ import pathlib
 import subprocess
 from argparse import ArgumentParser
 from concurrent import futures
-from glob import glob
 from multiprocessing import cpu_count
+import re
+
+
+class SampleObject(object):
+    def __init__(self, sample_name, file_type, file_path, sketch_file, dist_file):
+        # Create seq object with its attributes
+        self.sample_name = sample_name
+        self.file_type = file_type  # fastq or fasta
+        self.file_path = [file_path]  # list
+        self.sketch_file = sketch_file
+        self.dist_file = dist_file
 
 
 class MashPhylo(object):
@@ -26,32 +36,20 @@ class MashPhylo(object):
             self.cpu = mcpu
 
         # Data
-        self.input_file_list = list()
-        self.sketch_list = list()
-        self.distance_list = list()
-
-        # Look for input sequence files recursively
-        accepted_extentions = ['.fna', '.fna.gz',
-                               '.fasta', '.fasta.gz',
-                               '.fa', '.fa.gz',
-                               '.fastq', '.fastq.gz',
-                               '.fq', 'fq.gz']
-
-        for root, directories, filenames in os.walk(self.input):
-            for filename in filenames:
-                if filename.endswith(tuple(accepted_extentions)):  # accept a tuple or string
-                    self.input_file_list.append(os.path.join(root, filename))
+        self.input_dict = dict()
 
         # Run
         self.run()
 
     def run(self):
+        my_dict = self.input_dict
         self.checks()
+        self.get_samples(self.input)
         self.create_folders(self.output)
-        self.parallel_sketch_it(self.input_file_list)
-        self.paste_sketches(os.path.join(self.output, 'sketches'))
-        self.parallel_dist_it(self.sketch_list)
-        self.create_distance_matrix(self.distance_list)
+        self.parallel_sketch_it(my_dict)
+        self.paste_sketches(my_dict)
+        self.parallel_dist_it(my_dict)
+        self.create_distance_matrix(my_dict)
         self.create_tree(os.path.join(self.output, 'all_dist.tsv'))
 
     def checks(self):
@@ -61,15 +59,48 @@ class MashPhylo(object):
             raise Exception('The provided input folder does not exists')
 
         # Check self.sketch_size
+        # Make sure that there are not too many sketches.
+        # For example it doesn't make sense to split a 10,000bp genome into 10,000 sketches!
+        # Also you can't create more sketches that the total bp!
+        # Maybe compare it to file size?
 
-        # Check self.kmer_size
+        # Check self.kmer_size is not out of allowed sized by Mash
 
-        # Check if input seqence files were found
-        if not self.input_file_list:
+    def get_samples(self, input_folder):
+        accepted_extentions = ['.fna', '.fna.gz',
+                               '.fasta', '.fasta.gz',
+                               '.fa', '.fa.gz',
+                               '.fastq', '.fastq.gz',
+                               '.fq', '.fq.gz']
+
+        # Look for input sequence files recursively
+        for root, directories, filenames in os.walk(input_folder):
+            for filename in filenames:
+                if filename.endswith(tuple(accepted_extentions)):  # accept a tuple or string
+                    sample_name = os.path.basename(filename).split('_')[0]
+                    file_path = os.path.join(root, filename)
+                    file_type = os.path.basename(filename).split('.')[1]
+                    if '.' + file_type not in accepted_extentions:
+                        raise Exception('Don\'t use dot "." in your file names')
+
+                    sample_object = SampleObject(sample_name, file_type, file_path, None, None)
+
+                    if sample_name not in self.input_dict.keys():
+                        self.input_dict[sample_name] = sample_object
+                    # multiple files per samples are allowed (e.g. R1 and R2)
+                    elif sample_name in self.input_dict.keys():
+                        if file_type == self.input_dict[sample_name].file_type:
+                            self.input_dict[sample_name].file_path.append(file_path)
+                        else:
+                            raise Exception('Sample {} has both fastq and fasta files. Keep only one file type'.format(
+                                sample_name))
+
+        # Check if input sequence files were found
+        if not self.input_dict:
             raise Exception('No valid sequence files detected in provided input folder')
 
         # Need a least 3 samples to make a tree
-        if len(self.input_file_list) < 3:
+        if len(self.input_dict.keys()) < 3:
             raise Exception('At least 3 samples are required to build a tree')
 
     def create_folders(self, output):
@@ -82,90 +113,105 @@ class MashPhylo(object):
         # Create output folder for dendrogram
         pathlib.Path(os.path.join(output, 'tree')).mkdir(parents=True, exist_ok=True)
 
-    def sketch_it(self, sequence_file):
-        sample_name = os.path.basename(sequence_file).split('.')[0]
+    def sketch_it(self, info):
+        sample_name = info.sample_name
         output_file = os.path.join(self.output, 'sketches', sample_name)
+        info.sketch_file = output_file + '.msh'
 
-        # Use one CPU per process
-        fasta_ext = ['.fna', '.fna.gz', '.fasta', '.fasta.gz', '.fa', '.fa.gz']
-        fastq_ext = ['.fastq', '.fastq.gz', '.fq', 'fq.gz']
+        fasta_ext = ['fna', 'fasta', 'fa']
+        fastq_ext = ['fastq', 'fq']
+        cmd = None
 
-        if sequence_file.endswith(tuple(fasta_ext)):
-            subprocess.run(['mash', 'sketch',
-                            '-k', str(self.kmer_size),
-                            '-s', str(self.sketch_size),
-                            '-p', '1',
-                            '-o', output_file,
-                            sequence_file])
-        elif sequence_file.endswith(tuple(fastq_ext)):
-            subprocess.run(['mash', 'sketch',
-                            '-k', str(self.kmer_size),
-                            '-s', str(self.sketch_size),
-                            '-p', '1',
-                            '-r',
-                            '-m', '2',
-                            '-o', output_file,
-                            sequence_file])
+        if info.file_type in fasta_ext:
+            # Use one CPU per process (-p 1)
+            cmd = ['mash', 'sketch',
+                   '-k', str(self.kmer_size),
+                   '-s', str(self.sketch_size),
+                   '-p', '1',
+                   '-o', output_file] + info.file_path
+        elif info.file_type in fastq_ext:
+            # The option p will be ignored with r
+            cmd = ['mash', 'sketch',
+                   '-k', str(self.kmer_size),
+                   '-s', str(self.sketch_size),
+                   '-r',
+                   '-m', '2',
+                   '-o', output_file] + info.file_path
         else:
             pass  # Have been taking care of earlier
 
-    def parallel_sketch_it(self, file_list):
-        """
+        subprocess.run(cmd)
 
-        :param file_list: list of files (absolute paths)
-        :return:
-        """
+    def parallel_sketch_it(self, sample_dict):
         # we would want to use the ProcessPoolExecutor for CPU intensive tasks.
         # The ThreadPoolExecutor is better suited for network operations or I/O.
-        with futures.ThreadPoolExecutor(max_workers=self.cpu) as executor:
-            future_to_sketch = {executor.submit(self.sketch_it(s)): s for s in file_list}
-            # future_to_sketch = {executor.submit(self.sketch_it(s)): s for s in file_list}
-            # for future in futures.as_completed(future_to_sketch):
-            #     sketch = future_to_sketch[future]
 
-    def paste_sketches(self, sketch_folder):
-        search_pattern = sketch_folder + '/*.msh'
-        self.sketch_list = glob(search_pattern)
+        with futures.ThreadPoolExecutor(max_workers=self.cpu) as executor:
+            args = (info for sample, info in sample_dict.items())
+            for results in executor.map(self.sketch_it, args):
+                pass
+
+    def paste_sketches(self, sample_dict):
+        list_file = os.path.join(self.output, 'sketch.list')
+        all_msh = os.path.join(self.output, 'all.msh')
+
         # write list to file
-        with open(os.path.join(self.output, 'sketch.list'), 'w') as f:
-            for item in self.sketch_list:
-                f.write('{}\n'.format(item))
+        with open(list_file, 'w') as f:
+            for sample, info in sample_dict.items():
+                f.write('{}\n'.format(info.sketch_file))
 
         proc = subprocess.run(['mash', 'paste',
-                               os.path.join(self.output, 'all.msh'),
-                               '-l', os.path.join(self.output, 'sketch.list')])
+                               all_msh,
+                               '-l', list_file])
 
-    def dist_it(self, sketch_file):
-        sample_name = os.path.basename(sketch_file).split('.')[0]
+    def dist_it(self, info):
+        sample_name = info.sample_name
+        output_file = os.path.join(self.output, 'distances', sample_name) + '_dist.tsv'
+        info.dist_file = output_file
 
         proc = subprocess.Popen(['mash', 'dist',
                                  '-p', '1',
                                  '-t',
                                  os.path.join(self.output, 'all.msh'),
-                                 sketch_file], stdout=subprocess.PIPE)
+                                 info.sketch_file], stdout=subprocess.PIPE)
 
+        # run the process and caption standard output and standard error
         stdout, stderr = proc.communicate()
 
-        # remove path and file extension from file names
-        my_sample = stdout.split(b'\t')[1]
-        folder = os.path.dirname(my_sample) + b'/'
-        ext = b'.' + b'.'.join(my_sample.split(b'.')[1:])  # Account for double extension like ".fastq.gz"
-        stdout = stdout.replace(folder, b'').replace(ext, b'')
+        # Remove path from distance files so the tree looks better
+        line_list = stdout.split(b'\n')
+        sample_list = line_list[0].split(b'\t')[1:]  # Account for multiple paths if use symbolic links
+        for s in sample_list:
+            folder1 = os.path.dirname(s) + b'/'
+            stdout = stdout.replace(folder1, b'')
+        folder2 = os.path.dirname(line_list[1].split(b'\t')[0]) + b'/'
+        stdout = stdout.replace(folder2, b'')
 
-        # TODO -> parse into PANDA dataframe instead of writting to file. Maybe?
+        # Remove path and exention
+        pattern = re.compile(b'\..+?(?=\s)')
+        stdout = pattern.sub(b'', stdout)
+
+        # If fastq, there will be underscores to remove
+        # Remove from underscore to first TAB character
+        # https://stackoverflow.com/questions/7124778/how-to-match-anything-up-until-this-sequence-of-characters-in-a-regular-expres/32702991
+        pattern = re.compile(b'_.+?(?=\s)')
+        stdout = pattern.sub(b'', stdout)
+
+        # TODO -> parse into PANDA data frame instead of writing to file. Maybe?
         # Write distance file
-        output_file = os.path.join(self.output, 'distances', sample_name) + '_dist.tsv'
-        self.distance_list.append(output_file)
-        with open(output_file, 'w') as f:
+        with open(info.dist_file, 'w') as f:
             f.write(stdout.decode('ascii'))
 
-    def parallel_dist_it(self, sketch_list):
+    def parallel_dist_it(self, sample_dict):
         with futures.ThreadPoolExecutor(max_workers=self.cpu) as executor:
-            future_to_dist = {executor.submit(self.dist_it(d)): d for d in sketch_list}
-            # for future in futures.as_completed(future_to_dist):
-            #     sketch = future_to_dist[future]
+            args = (info for sample, info in sample_dict.items())
+            for results in executor.map(self.dist_it, args):
+                pass
 
-    def create_distance_matrix(self, distance_list):
+    def create_distance_matrix(self, sample_dict):
+        distance_list = list()
+        for sample, info in sample_dict.items():
+            distance_list.append(info.dist_file)
         header = open(distance_list[0], 'r').readline()
 
         with open(os.path.join(self.output, 'all_dist.tsv'), 'w') as outfile:
@@ -185,7 +231,6 @@ class MashPhylo(object):
 
 
 if __name__ == "__main__":
-    # https://docs.python.org/dev/library/argparse.html#action
     max_cpu = cpu_count()
 
     parser = ArgumentParser(description='Create dendrogram from a square distance matrix')
