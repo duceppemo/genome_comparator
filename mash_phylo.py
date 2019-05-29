@@ -78,7 +78,7 @@ class MashPhylo(object):
         for root, directories, filenames in os.walk(input_folder):
             for filename in filenames:
                 if filename.endswith(tuple(accepted_extentions)):  # accept a tuple or string
-                    sample_name = os.path.basename(filename).split('_')[0]
+                    sample_name = os.path.basename(filename).split('.')[0].split('_')[0]
                     file_path = os.path.join(root, filename)
                     file_type = os.path.basename(filename).split('.')[1]
                     if '.' + file_type not in accepted_extentions:
