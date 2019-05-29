@@ -50,6 +50,7 @@ class MashPhylo(object):
         self.paste_sketches(my_dict)
         self.parallel_dist_it(my_dict)
         self.create_distance_matrix(my_dict)
+        self.clean_samples_names(os.path.join(self.output, 'all_dist.tsv'))
         self.create_tree(os.path.join(self.output, 'all_dist.tsv'))
 
     def checks(self):
@@ -175,24 +176,24 @@ class MashPhylo(object):
         # run the process and caption standard output and standard error
         stdout, stderr = proc.communicate()
 
-        # Remove path from distance files so the tree looks better
-        line_list = stdout.split(b'\n')
-        sample_list = line_list[0].split(b'\t')[1:]  # Account for multiple paths if use symbolic links
-        for s in sample_list:
-            folder1 = os.path.dirname(s) + b'/'
-            stdout = stdout.replace(folder1, b'')
-        folder2 = os.path.dirname(line_list[1].split(b'\t')[0]) + b'/'
-        stdout = stdout.replace(folder2, b'')
-
-        # Remove path and exention
-        ext = b'.' + info.file_type.encode('utf-8')
-        stdout = stdout.replace(ext, b'').replace(b'.gz', b'')
-
-        # If fastq, there will be underscores to remove
-        # Remove from underscore to first TAB character
-        # https://stackoverflow.com/questions/7124778/how-to-match-anything-up-until-this-sequence-of-characters-in-a-regular-expres/32702991
-        pattern = re.compile(b'_.+?(?=\s)')
-        stdout = pattern.sub(b'', stdout)
+        # # Remove path from distance files so the tree looks better
+        # line_list = stdout.split(b'\n')
+        # sample_list = line_list[0].split(b'\t')[1:]  # Account for multiple paths if use symbolic links
+        # for s in sample_list:
+        #     folder1 = os.path.dirname(s) + b'/'
+        #     stdout = stdout.replace(folder1, b'')
+        # folder2 = os.path.dirname(line_list[1].split(b'\t')[0]) + b'/'
+        # stdout = stdout.replace(folder2, b'')
+        #
+        # # Remove path and exention
+        # ext = b'.' + info.file_type.encode('utf-8')
+        # stdout = stdout.replace(ext, b'').replace(b'.gz', b'')
+        #
+        # # If fastq, there will be underscores to remove
+        # # Remove from underscore to first TAB character
+        # # https://stackoverflow.com/questions/7124778/how-to-match-anything-up-until-this-sequence-of-characters-in-a-regular-expres/32702991
+        # pattern = re.compile(b'_.+?(?=\s)')
+        # stdout = pattern.sub(b'', stdout)
 
         # TODO -> parse into PANDA data frame instead of writing to file. Maybe?
         # Write distance file
@@ -225,6 +226,23 @@ class MashPhylo(object):
                         '-i', matrix_file,
                         '-o', os.path.join(self.output, 'tree'),
                         '--nj'])
+
+    def clean_samples_names(self, infile):
+        # Create a new dictionary for renaming
+        rename_dict = dict()
+        for sample, info in self.input_dict.items():
+            for pa in info.file_path:
+                rename_dict[pa] = sample
+
+        with open(infile + '.tmp', 'w') as tmpfile:
+            with open(infile, 'r') as f:
+                for line in f:
+                    for p, n in rename_dict.items():
+                        line = line.replace(p, n)
+                    tmpfile.write(line)
+
+        # rename file
+        os.rename(infile + '.tmp', infile)
 
 
 if __name__ == "__main__":
