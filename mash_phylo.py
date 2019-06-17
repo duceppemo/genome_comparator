@@ -6,29 +6,45 @@ import subprocess
 from argparse import ArgumentParser
 from concurrent import futures
 from multiprocessing import cpu_count
-import re
+from time import time
+import numpy as np
+import gzip
+
+
+# TODO -> use logger
 
 
 class SampleObject(object):
-    def __init__(self, sample_name, file_type, file_path, sketch_file, dist_file):
+    def __init__(self, sample_name, file_type, file_path, sketch_file, dist_file, est_size, est_cov, contigs):
         # Create seq object with its attributes
         self.sample_name = sample_name
         self.file_type = file_type  # fastq or fasta
         self.file_path = [file_path]  # list
         self.sketch_file = sketch_file
         self.dist_file = dist_file
+        self.est_size = est_size
+        self.est_cov = est_cov
+        self.contigs = contigs
 
 
 class MashPhylo(object):
 
     def __init__(self, args):
 
+        # Paths
+        self.home = str(pathlib.Path.home())
+        self.cwd = os.getcwd()
+        self.script_path = os.path.dirname(os.path.abspath(__file__))
+
+        # Command line's arguments
         self.args = args
-        self.input = args.input
-        self.output = args.output
+        self.input = self.fix_paths(args.input)
+        self.output = self.fix_paths(args.output)
         self.cpu = args.threads
         self.sketch_size = args.sketch_size
         self.kmer_size = args.kmer_size
+        self.nj = args.nj
+        self.pca = args.pca
 
         # Performance
         mcpu = cpu_count()
@@ -42,22 +58,45 @@ class MashPhylo(object):
         self.run()
 
     def run(self):
+        # To log total runtime
+        start_time = time()
+
         my_dict = self.input_dict
         self.checks()
         self.get_samples(self.input)
-        self.create_folders(self.output)
+        MashPhylo.create_output_folders(self.output)
+
+        print("Sketching files...", end="", flush=True)
+        t0 = time()
         self.parallel_sketch_it(my_dict)
+        print(" %s" % self.elapsed_time(time() - t0))
+
+        MashPhylo.write_stats(self.input_dict, os.path.join(self.output, 'sample_stats.txt'))
         self.paste_sketches(my_dict)
+
+        print("Pasting all sketches together...", end="", flush=True)
+        t0 = time()
         self.parallel_dist_it(my_dict)
+        print(" %s" % self.elapsed_time(time() - t0))
+
+        print("Computing distances...", end="", flush=True)
+        t0 = time()
         self.create_distance_matrix(my_dict)
+        print(" %s" % self.elapsed_time(time() - t0))
+
         self.clean_samples_names(os.path.join(self.output, 'all_dist.tsv'))
+
+        print("Making tree(s)...")
         self.create_tree(os.path.join(self.output, 'all_dist.tsv'))
+
+        # Total time
+        print("\nDone in %s" % MashPhylo.elapsed_time(time() - start_time))
 
     def checks(self):
         if not os.path.isdir(self.input):
-            raise Exception('An input folder is required')
+            raise Exception('The provided input path is not a directory')
         if not os.path.exists(self.input):
-            raise Exception('The provided input folder does not exists')
+            raise Exception('The provided input directory does not exists')
 
         # Check self.sketch_size
         # Make sure that there are not too many sketches.
@@ -67,7 +106,31 @@ class MashPhylo(object):
 
         # Check self.kmer_size is not out of allowed sized by Mash
 
+    def fix_paths(self, in_path):
+        """
+        Convert relative paths to absolute path. Also convert tild ("~") to its absolute value.
+
+        :param in_path: string; path
+        :return: out_path; string; absolute path of in_path
+        """
+        out_path = in_path
+
+        if os.path.dirname(in_path).startswith('./'):
+            out_path = in_path.replace('.', self.cwd, 1)  # only replace the first one (not in the file extension)
+        elif os.path.dirname(in_path).startswith('../'):
+            out_path = os.path.dirname(in_path.replace('..', self.cwd, 1))
+        elif in_path.startswith('~'):
+            out_path = in_path.replace('~', self.home)
+
+        return out_path
+
     def get_samples(self, input_folder):
+        """
+        Creates a dictionary of 'sample objects'.
+
+        :param input_folder: string; absolute path to input folder containing fastq and/or fasta files
+        :return:
+        """
         accepted_extentions = ['.fna', '.fna.gz',
                                '.fasta', '.fasta.gz',
                                '.fa', '.fa.gz',
@@ -84,7 +147,7 @@ class MashPhylo(object):
                     if '.' + file_type not in accepted_extentions:
                         raise Exception('Don\'t use dot "." in your file names')
 
-                    sample_object = SampleObject(sample_name, file_type, file_path, None, None)
+                    sample_object = SampleObject(sample_name, file_type, file_path, None, None, 'N/A', 'N/A', None)
 
                     if sample_name not in self.input_dict.keys():
                         self.input_dict[sample_name] = sample_object
@@ -104,7 +167,31 @@ class MashPhylo(object):
         if len(self.input_dict.keys()) < 3:
             raise Exception('At least 3 samples are required to build a tree')
 
-    def create_folders(self, output):
+    @staticmethod
+    def elapsed_time(seconds):
+        """
+        Transform a time value into a string
+        :param seconds: Elapsed time in seconds
+        :return: Formated time string
+        """
+
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        days, hours = divmod(hours, 24)
+
+        periods = [('d', days), ('h', hours), ('m', minutes), ('s', seconds)]
+        time_string = ''.join('{}{}'.format(int(np.round(value)), name) for name, value in periods if value)
+
+        return time_string
+
+    @staticmethod
+    def create_output_folders(output):
+        """
+        Create the output folder and subfolders
+
+        :param output: string; absolute path to output folder
+        :return:
+        """
         # Create output folder is it does not exist
         pathlib.Path(output).mkdir(parents=True, exist_ok=True)
         # Create output folder for mash sketches
@@ -114,12 +201,37 @@ class MashPhylo(object):
         # Create output folder for dendrogram
         pathlib.Path(os.path.join(output, 'tree')).mkdir(parents=True, exist_ok=True)
 
+
+    @staticmethod
+    def get_assembly_info(fasta_file):
+        """
+        Compute assembly size in bp and number of contigs
+        :param fasta_file: string; absolute path to assembly file
+        :return: string; string representation of the assembly size in bp
+                 string; string representation of number of contigs in the assembly
+        """
+
+        assembly_size = 0
+        contigs = 0
+        with gzip.open(fasta_file, 'r') if fasta_file.endswith('.gz') else open(fasta_file, 'r') as f:
+            for line in f:
+                line = line.rstrip()
+                if len(line) == 0:  # skip empty lines
+                    continue
+
+                if line.startswith('>'):
+                    contigs += 1
+                else:
+                    assembly_size += len(line)
+        return str(assembly_size), str(contigs)
+
     def sketch_it(self, info):
         output_file = os.path.join(self.output, 'sketches', info.sample_name)
         info.sketch_file = output_file + '.msh'
 
         fasta_ext = ['fna', 'fasta', 'fa']
         fastq_ext = ['fastq', 'fq']
+        is_fastq = False
         cmd = None
 
         if info.file_type in fasta_ext:
@@ -130,6 +242,7 @@ class MashPhylo(object):
                    '-p', '1',
                    '-o', output_file] + info.file_path
         elif info.file_type in fastq_ext:
+            is_fastq = True
             # The option p will be ignored with r
             cmd = ['mash', 'sketch',
                    '-k', str(self.kmer_size),
@@ -140,7 +253,17 @@ class MashPhylo(object):
         else:
             pass  # Have been taking care of earlier
 
-        subprocess.run(cmd)
+        # subprocess.run(cmd)  # Makes too much info on screen
+        p1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = p1.communicate()
+
+        # if fastq, output "Estimated genome size" and "Estimated coverage" into log file
+        if is_fastq:
+            stats = stdout.split(b'\n')
+            info.est_size = str(int(float(stats[0].split(b' ')[-1].decode('ascii'))))
+            info.est_cov = stats[1].split(b' ')[-1].decode('ascii')
+        else:
+            info.est_size, info.contigs = MashPhylo.get_assembly_info(info.file_path[0])
 
     def parallel_sketch_it(self, sample_dict):
         # we would want to use the ProcessPoolExecutor for CPU intensive tasks.
@@ -150,6 +273,22 @@ class MashPhylo(object):
             args = (info for sample, info in sample_dict.items())
             for results in executor.map(self.sketch_it, args):
                 pass
+
+    @staticmethod
+    def write_stats(sample_dict, stats_file):
+        with open(stats_file, 'w') as f:
+            for name, info in sample_dict.items():
+                if info.file_type == 'fastq':
+                    pair = ''
+                    if len(info.file_path) == 2:
+                        pair = 'PE'
+                    else:
+                        pair = 'SE'
+                    f.write("{} ({} {}):\n\tEstimated genome size: {}\n\tEstimated coverage: {}\n\n".format(
+                        info.sample_name, pair, info.file_type, info.est_size, info.est_cov))
+                else:  # fasta
+                    f.write("{} ({}):\n\tAssembly size: {}\n\tNumber of contigs: {}\n\n".format(
+                        info.sample_name, info.file_type, info.est_size, info.contigs))
 
     def paste_sketches(self, sample_dict):
         list_file = os.path.join(self.output, 'sketch.list')
@@ -175,25 +314,6 @@ class MashPhylo(object):
 
         # run the process and caption standard output and standard error
         stdout, stderr = proc.communicate()
-
-        # # Remove path from distance files so the tree looks better
-        # line_list = stdout.split(b'\n')
-        # sample_list = line_list[0].split(b'\t')[1:]  # Account for multiple paths if use symbolic links
-        # for s in sample_list:
-        #     folder1 = os.path.dirname(s) + b'/'
-        #     stdout = stdout.replace(folder1, b'')
-        # folder2 = os.path.dirname(line_list[1].split(b'\t')[0]) + b'/'
-        # stdout = stdout.replace(folder2, b'')
-        #
-        # # Remove path and exention
-        # ext = b'.' + info.file_type.encode('utf-8')
-        # stdout = stdout.replace(ext, b'').replace(b'.gz', b'')
-        #
-        # # If fastq, there will be underscores to remove
-        # # Remove from underscore to first TAB character
-        # # https://stackoverflow.com/questions/7124778/how-to-match-anything-up-until-this-sequence-of-characters-in-a-regular-expres/32702991
-        # pattern = re.compile(b'_.+?(?=\s)')
-        # stdout = pattern.sub(b'', stdout)
 
         # TODO -> parse into PANDA data frame instead of writing to file. Maybe?
         # Write distance file
@@ -222,10 +342,15 @@ class MashPhylo(object):
                             outfile.write(line)
 
     def create_tree(self, matrix_file):
-        subprocess.run(['python3', 'dendrogram_from_distance_matrix.py',
-                        '-i', matrix_file,
-                        '-o', os.path.join(self.output, 'tree'),
-                        '--nj'])
+        cmd = ['python3', self.script_path + '/dendrogram_from_distance_matrix.py',
+               '-i', matrix_file,
+               '-o', os.path.join(self.output, 'tree')]
+        if self.nj:
+            cmd.append('--nj')
+        if self.pca:
+            cmd.append('--pca')
+
+        subprocess.run(cmd)
 
     def clean_samples_names(self, infile):
         # Create a new dictionary for renaming

@@ -11,6 +11,7 @@ from skbio.tree import nj
 from sklearn import manifold
 from scipy.cluster.hierarchy import dendrogram
 import matplotlib.pyplot as plt
+from argparse import ArgumentParser
 
 
 class Dendro(object):
@@ -30,11 +31,9 @@ class Dendro(object):
         self.run()
 
     def run(self):
-        start_time = time()
-
         # Parse input file
         t0 = time()
-        print("Parsing input file to pandas dataframe...", end="", flush=True)
+        print("\tParsing distance matrix to pandas dataframe...", end="", flush=True)
         self.parse_input(self.input)
         nrow, ncol = self.df.shape
         print(" ({} x {}) {}".format(nrow, ncol, self.elapsed_time(time() - t0)))
@@ -43,20 +42,20 @@ class Dendro(object):
         # self.fix_names(self.df)
 
         # Sort dataframe
-        print("Sorting dataframe...", end="", flush=True)
+        print("\tSorting dataframe...", end="", flush=True)
         t0 = time()
         self.sort_dataframe()
         print(" %s" % self.elapsed_time(time() - t0))
 
         # Get labels
-        print("Getting labels...", end="", flush=True)
+        print("\tGetting labels...", end="", flush=True)
         t0 = time()
         self.get_labels()
         print(" %s" % self.elapsed_time(time() - t0))
 
         # Make tree from dataframe
         # Using scipy -> Takes about 8s to run with ~9,000 Salmonella genomes (fasta)
-        print("Making hierarchical clustering tree...", end="", flush=True)
+        print("\tMaking hierarchical clustering tree...", end="", flush=True)
         t0 = time()
         self.make_hc_dendrogram(self.df, self.labels)
         print(" %s" % self.elapsed_time(time() - t0))
@@ -69,7 +68,7 @@ class Dendro(object):
 
         # Make PCA
         if self.pca_flag:
-            print("Making PCA...", end="", flush=True)
+            print("\tMaking PCA...", end="", flush=True)
             t0 = time()
             self.make_pca(self.df)
             print(" %s" % self.elapsed_time(time() - t0))
@@ -78,9 +77,6 @@ class Dendro(object):
         # Using scikit-bio  -> Takes about 8h to run with ~9,000 Salmonella genomes (fasta)
         if self.nj_flag:
             self.make_nj_tree(self.df, self.labels)
-
-        # Total time
-        print("\nDone in %s" % self.elapsed_time(time() - start_time))
 
     def elapsed_time(self, seconds):
         """
@@ -154,7 +150,7 @@ class Dendro(object):
         self.labels = self.df.columns.tolist()
 
         # Add single quotes around labels to allow special characters
-        self.labels[:] = ['\'{}\''.format(x) for x in self.labels]
+        # self.labels[:] = ['\'{}\''.format(x) for x in self.labels]
 
     def make_hc_dendrogram(self, df, labels):
         """
@@ -212,14 +208,15 @@ class Dendro(object):
         """
 
         t0 = time()
-        print("Converting dataframe to DistanceMatrix object...", end="", flush=True)
+        print("\tConverting dataframe to DistanceMatrix object...", end="", flush=True)
         dm = DistanceMatrix(df, labels)
         print(" %s" % self.elapsed_time(time() - t0))
 
         t0 = time()
-        print("Creating nj tree...", end="", flush=True)
+        print("\tCreating nj tree...", end="", flush=True)
         nw = nj(dm, result_constructor=str)
         print(" %s" % self.elapsed_time(time() - t0))
+
         name = basename(self.input).split('.')[0]  # input file name without extension
         out_tree_file = self.output + '/' + name + '_nj.nwk'
         with open(out_tree_file, 'w') as out:
@@ -265,8 +262,8 @@ class Dendro(object):
         plt.subplots_adjust(bottom=0.1)
         plt.scatter(coords[:, 0], coords[:, 1], marker='o')
 
-        species = [x.split('_')[1] for x in self.labels]
-        for label, x, y in zip(species, coords[:, 0], coords[:, 1]):
+        # species = [x.split('_')[1] for x in self.labels]
+        for label, x, y in zip(self.labels, coords[:, 0], coords[:, 1]):
             plt.annotate(
                 label,
                 xy=(x, y), xytext=(-10, 10),
@@ -285,10 +282,6 @@ class Dendro(object):
 
 
 if __name__ == "__main__":
-
-    from argparse import ArgumentParser
-    # https://docs.python.org/dev/library/argparse.html#action
-
     parser = ArgumentParser(description='Create dendrogram from a square distance matrix')
     parser.add_argument('-i', '--input', metavar='my_square_matrix.tsv',
                         required=True,
