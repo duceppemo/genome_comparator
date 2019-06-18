@@ -12,6 +12,7 @@ import gzip
 
 
 # TODO -> use logger
+# TODO -> Maybe add progress bar for the sketching? # https://renzo.lucioni.xyz/parallel-progress/
 
 
 class SampleObject(object):
@@ -232,7 +233,7 @@ class MashPhylo(object):
         fasta_ext = ['fna', 'fasta', 'fa']
         fastq_ext = ['fastq', 'fq']
         is_fastq = False
-        cmd = None
+        cmd = list()
 
         if info.file_type in fasta_ext:
             # Use one CPU per process (-p 1)
@@ -249,6 +250,7 @@ class MashPhylo(object):
                    '-s', str(self.sketch_size),
                    '-r',
                    '-m', '2',
+                   '-I', info.sample_name,
                    '-o', output_file] + info.file_path
         else:
             pass  # Have been taking care of earlier
