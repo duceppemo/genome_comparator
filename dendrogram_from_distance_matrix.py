@@ -12,6 +12,10 @@ from sklearn import manifold
 from scipy.cluster.hierarchy import dendrogram
 import matplotlib.pyplot as plt
 from argparse import ArgumentParser
+import sys
+
+# To prevent "RecursionError: maximum recursion depth exceeded" when creating Newick tree file from huge trees
+sys.setrecursionlimit(10000)
 
 
 class Dendro(object):

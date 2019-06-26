@@ -9,6 +9,9 @@ from multiprocessing import cpu_count
 from time import time
 import numpy as np
 import gzip
+from glob import glob
+from shutil import rmtree
+from pathlib import Path
 
 
 # TODO -> use logger
@@ -46,6 +49,7 @@ class MashPhylo(object):
         self.kmer_size = args.kmer_size
         self.nj = args.nj
         self.pca = args.pca
+        self.clean = args.clean
 
         # Performance
         mcpu = cpu_count()
@@ -73,7 +77,9 @@ class MashPhylo(object):
         print(" %s" % self.elapsed_time(time() - t0))
 
         MashPhylo.write_stats(self.input_dict, os.path.join(self.output, 'sample_stats.txt'))
-        self.paste_sketches(my_dict)
+
+        # Concatenate individual sketch files into a single multi-sketch file
+        self.paste_it(my_dict)
 
         print("Pasting all sketches together...", end="", flush=True)
         t0 = time()
@@ -89,6 +95,10 @@ class MashPhylo(object):
 
         print("Making tree(s)...")
         self.create_tree(os.path.join(self.output, 'all_dist.tsv'))
+
+        # remove temporary files
+        if self.clean:
+            self.cleanup_files()
 
         # Total time
         print("\nDone in %s" % MashPhylo.elapsed_time(time() - start_time))
@@ -202,7 +212,6 @@ class MashPhylo(object):
         # Create output folder for dendrogram
         pathlib.Path(os.path.join(output, 'tree')).mkdir(parents=True, exist_ok=True)
 
-
     @staticmethod
     def get_assembly_info(fasta_file):
         """
@@ -220,7 +229,11 @@ class MashPhylo(object):
                 if len(line) == 0:  # skip empty lines
                     continue
 
-                if line.startswith('>'):
+                pattern = '>'
+                if fasta_file.endswith('.gz'):
+                    pattern = b'>'
+
+                if line.startswith(pattern):
                     contigs += 1
                 else:
                     assembly_size += len(line)
@@ -292,18 +305,80 @@ class MashPhylo(object):
                     f.write("{} ({}):\n\tAssembly size: {}\n\tNumber of contigs: {}\n\n".format(
                         info.sample_name, info.file_type, info.est_size, info.contigs))
 
-    def paste_sketches(self, sample_dict):
-        list_file = os.path.join(self.output, 'sketch.list')
+    @staticmethod
+    def split_n_lines(input_file, n_lines):
+        path = os.path.dirname(input_file)
+        sketche_list = list()
+
+        with open(input_file, 'r') as f:
+            file_number = 0
+            line_number = 0
+
+            out_file = path + '/splitted_sketch' + str(file_number) + '.list'
+            out_fh = open(out_file, 'w')
+            sketche_list.append(out_file)
+            for line in f:
+                line_number += 1
+                out_fh.write(line)
+                if line_number > n_lines:
+                    file_number += 1
+                    line_number = 0
+                    out_fh.close()
+                    out_file = path + '/splitted_sketch' + str(file_number) + '.list'
+                    out_fh = open(out_file, 'w')
+                    sketche_list.append(out_file)
+            out_fh.close()
+
+        return sketche_list
+
+    @staticmethod
+    def paste_sketches(sketch_list_file, output_file):
+        # TODO -> Prevent from writtng to stderr
+        subprocess.run(['mash', 'paste',
+                        output_file,
+                        '-l', sketch_list_file])
+
+    def parallel_paste_it(self, sketch_list):
+        # Create output file absolute path
+        sketch_tuple_list = list()  # (input, output)
+        for file in sketch_list:
+            sketch_tuple_list.append(tuple((file, file.replace('.list', '.msh'))))
+
+        with futures.ThreadPoolExecutor(max_workers=self.cpu) as executor:
+            args = ((a, b) for a, b in sketch_tuple_list)
+            for results in executor.map(lambda p: MashPhylo.paste_sketches(*p), args):
+                pass
+
+    def paste_it(self, sample_dict):
+        file_list = os.path.join(self.output, 'sketch.list')
         all_msh = os.path.join(self.output, 'all.msh')
 
         # write list to file
-        with open(list_file, 'w') as f:
+        with open(file_list, 'w') as f:
             for sample, info in sample_dict.items():
                 f.write('{}\n'.format(info.sketch_file))
 
-        proc = subprocess.run(['mash', 'paste',
-                               all_msh,
-                               '-l', list_file])
+        # Trying to paste too many sketch files makes the program crash.
+        # I haven't tested what is the maximum number of files it can handle, but it works with 10,000
+        num_sketches = sum(1 for line in open(file_list, 'r'))
+
+        if num_sketches > 10000:
+            # Split the list file into chunks of 10,000 files
+            sketche_list = MashPhylo.split_n_lines(file_list, 10000)
+
+            # Run in parallel all the chunks
+            self.parallel_paste_it(sketche_list)
+
+            # make a list of the path of the chunk pasted files
+            tmp_list = [file for file in glob(self.output + '**/*.msh', recursive=False)]
+            with open(self.output + '/tmp.list', 'w') as tmp_fh:
+                tmp_fh.write('\n'.join(tmp_list) + '\n')
+
+            # Paste together the pasted chunks
+            MashPhylo.paste_sketches(self.output + '/tmp.list', all_msh)
+
+        else:
+            MashPhylo.paste_sketches(file_list, all_msh)
 
     def dist_it(self, info):
         info.dist_file = os.path.join(self.output, 'distances', info.sample_name) + '_dist.tsv'
@@ -371,6 +446,15 @@ class MashPhylo(object):
         # rename file
         os.rename(infile + '.tmp', infile)
 
+    def cleanup_files(self):
+        # Delete individual sketches and list file(s)
+        rmtree(self.output + '/distances')
+        rmtree(self.output + '/sketches')
+        for f in Path(self.output).glob('**/*.list'):
+            f.unlink()
+        for f in Path(self.output).glob('**/splitted*'):
+            f.unlink()
+
 
 if __name__ == "__main__":
     max_cpu = cpu_count()
@@ -406,6 +490,8 @@ if __name__ == "__main__":
                         help='Output PCA. Default "False".'
                              'Not very useful when too many samples.'
                              'Still experimental')
+    parser.add_argument('--clean', action='store_true',
+                        help='Remove temporary files. Default "False".')
 
     # Get the arguments into an object
     arguments = parser.parse_args()
