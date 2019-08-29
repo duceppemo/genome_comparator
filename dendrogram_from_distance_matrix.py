@@ -236,7 +236,7 @@ class Dendro(object):
         :return:
         """
         if node.is_leaf():
-            return "%s:%.2f%s" % (leaf_names[node.id], parentdist - node.dist, newick)
+            return "%s:%.2f%s" % ('\'' + leaf_names[node.id] + '\'', parentdist - node.dist, newick)
         else:
             if len(newick) > 0:
                 newick = "):%.2f%s" % (parentdist - node.dist, newick)

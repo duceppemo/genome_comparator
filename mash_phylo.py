@@ -152,11 +152,18 @@ class MashPhylo(object):
         for root, directories, filenames in os.walk(input_folder):
             for filename in filenames:
                 if filename.endswith(tuple(accepted_extentions)):  # accept a tuple or string
-                    sample_name = os.path.basename(filename).split('.')[0].split('_')[0]
                     file_path = os.path.join(root, filename)
-                    file_type = os.path.basename(filename).split('.')[1]
-                    if '.' + file_type not in accepted_extentions:
-                        raise Exception('Don\'t use dot "." in your file names')
+                    # TODO -> change the way to get sample name to accept dots in file names
+                    #         Maybe just replace the accepted_extension found by nothing.
+
+                    # Get the matching file extension
+                    f, ext = os.path.splitext(filename)
+                    # ext = list(filter(None, [x if filename.endswith(x) else '' for x in accepted_extentions]))[0]
+                    # Remove file extension to sample name
+                    # sample_name = os.path.basename(filename).split('.')[0].split('_')[0]
+                    # sample_name = os.path.basename(filename).replace(ext, '')
+                    sample_name = os.path.basename(f)
+                    file_type = ext.split('.')[1]
 
                     sample_object = SampleObject(sample_name, file_type, file_path, None, None, 'N/A', 'N/A', None)
 
@@ -169,6 +176,10 @@ class MashPhylo(object):
                         else:
                             raise Exception('Sample {} has both fastq and fasta files. Keep only one file type'.format(
                                 sample_name))
+                # else:
+                #     Just do nothing, ignore other files
+                #     raise Exception('Please use one of the following file extensions: \'{}\''.format(
+                #         '\', \''.join(accepted_extentions)))
 
         # Check if input sequence files were found
         if not self.input_dict:
@@ -466,7 +477,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output', metavar='/output/folder',
                         required=True,
                         help='Folder to hold the result files')
-    parser.add_argument('-t', '--threads', metavar=max_cpu,
+    parser.add_argument('-t', '--threads', metavar=str(max_cpu),
                         required=False,
                         type=int, default=max_cpu,
                         help='Number of CPU.'
