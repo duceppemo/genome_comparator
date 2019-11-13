@@ -12,6 +12,7 @@ import gzip
 from glob import glob
 from shutil import rmtree
 from pathlib import Path
+import re
 
 
 # TODO -> use logger
@@ -142,7 +143,7 @@ class MashPhylo(object):
         :param input_folder: string; absolute path to input folder containing fastq and/or fasta files
         :return:
         """
-        accepted_extentions = ['.fna', '.fna.gz',
+        accepted_extensions = ['.fna', '.fna.gz',
                                '.fasta', '.fasta.gz',
                                '.fa', '.fa.gz',
                                '.fastq', '.fastq.gz',
@@ -151,19 +152,24 @@ class MashPhylo(object):
         # Look for input sequence files recursively
         for root, directories, filenames in os.walk(input_folder):
             for filename in filenames:
-                if filename.endswith(tuple(accepted_extentions)):  # accept a tuple or string
+                if filename.endswith(tuple(accepted_extensions)):  # accept a tuple or string
                     file_path = os.path.join(root, filename)
                     # TODO -> change the way to get sample name to accept dots in file names
                     #         Maybe just replace the accepted_extension found by nothing.
 
                     # Get the matching file extension
                     f, ext = os.path.splitext(filename)
-                    # ext = list(filter(None, [x if filename.endswith(x) else '' for x in accepted_extentions]))[0]
+                    # ext = list(filter(None, [x if filename.endswith(x) else '' for x in accepted_extensions]))[0]
                     # Remove file extension to sample name
                     # sample_name = os.path.basename(filename).split('.')[0].split('_')[0]
                     # sample_name = os.path.basename(filename).replace(ext, '')
                     sample_name = os.path.basename(f)
-                    file_type = ext.split('.')[1]
+                    file_type = ext
+                    if ext == '.gz':
+                        file_type = sample_name.split('.')[-1]
+                        sample_name = '.'.join(sample_name.split('.')[:-1])
+                    if '_R1' or '_R2' in sample_name:
+                        sample_name = re.sub('_R1.*|_R2.*', '', sample_name)
 
                     sample_object = SampleObject(sample_name, file_type, file_path, None, None, 'N/A', 'N/A', None)
 
@@ -179,7 +185,7 @@ class MashPhylo(object):
                 # else:
                 #     Just do nothing, ignore other files
                 #     raise Exception('Please use one of the following file extensions: \'{}\''.format(
-                #         '\', \''.join(accepted_extentions)))
+                #         '\', \''.join(accepted_extensions)))
 
         # Check if input sequence files were found
         if not self.input_dict:
