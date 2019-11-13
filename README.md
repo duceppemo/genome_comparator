@@ -6,6 +6,10 @@ A tool to quickly compare and visualize distances between organisms using whole 
 ## Author
 Marc-Olivier Duceppe: marc-olivier.duceppe@canada.ca
 
+## Requirements
+* Mash (https://github.com/marbl/Mash)
+* see "requirement.txt" file for required python packages
+
 ## Usage
 A typical command to compare bacteria genomes assemblies:
 ```
