@@ -260,8 +260,8 @@ class MashPhylo(object):
         output_file = os.path.join(self.output, 'sketches', info.sample_name)
         info.sketch_file = output_file + '.msh'
 
-        fasta_ext = ['fna', 'fasta', 'fa']
-        fastq_ext = ['fastq', 'fq']
+        fasta_ext = ['.fna', '.fasta', '.fa']
+        fastq_ext = ['.fastq', '.fq']
         is_fastq = False
         cmd = list()
 
