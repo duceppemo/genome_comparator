@@ -310,7 +310,7 @@ class MashPhylo(object):
     def write_stats(sample_dict, stats_file):
         with open(stats_file, 'w') as f:
             for name, info in sample_dict.items():
-                if info.file_type == 'fastq':
+                if info.file_type == '.fastq':
                     pair = ''
                     if len(info.file_path) == 2:
                         pair = 'PE'
