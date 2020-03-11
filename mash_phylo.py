@@ -166,7 +166,7 @@ class MashPhylo(object):
                     sample_name = os.path.basename(f)
                     file_type = ext
                     if ext == '.gz':
-                        file_type = sample_name.split('.')[-1]
+                        file_type = '.' + sample_name.split('.')[-1]
                         sample_name = '.'.join(sample_name.split('.')[:-1])
                     if '_R1' or '_R2' in sample_name:
                         sample_name = re.sub('_R1.*|_R2.*', '', sample_name)
