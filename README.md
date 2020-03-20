@@ -18,7 +18,7 @@ python3 mash_phylo.py -i /input/folder/ -o /output/folder/ -t 48 --nj
 The program's help:
 ```
 usage: mash_phylo.py [-h] -i /input/folder -o /output/folder [-t 48]
-                     [-k KMER_SIZE] [-s SKETCH_SIZE] [--nj] [--pca]
+                     [-k KMER_SIZE] [-s SKETCH_SIZE] [--nj] [--pca] [--clean]
 
 Create dendrogram from a square distance matrix
 
@@ -38,8 +38,8 @@ optional arguments:
                         big matricese.g. it takes about 8h to run on a 9,000 x
                         9,000 matrix
   --pca                 Output PCA. Default "False".Not very useful when too
-                        many samples.
-                        Still experimental
+                        many samples.Still experimental
+  --clean               Remove temporary files. Default "False".
 ```
 
 ##Output
