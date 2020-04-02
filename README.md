@@ -10,10 +10,25 @@ Marc-Olivier Duceppe: marc-olivier.duceppe@canada.ca
 * Mash (https://github.com/marbl/Mash)
 * see "requirement.txt" file for required python packages
 
+## Installation
+1. Create virtual environment. I like to use conda.
+2. Activate environment
+3. Clone repository
+4. Install dependencies
+5. Test installation
+```
+conda create -n genome_comparator python=3
+conda activate genome comparator
+git clone https://github.com/duceppemo/genome_comparator
+cd genome_comparator
+conda install --file requirements.txt
+python3 mash_phylo.py -h
+```
+
 ## Usage
 A typical command to compare bacteria genomes assemblies:
 ```
-python3 mash_phylo.py -i /input/folder/ -o /output/folder/ -t 48 --nj 
+python3 mash_phylo.py -i /input/folder/ -o /output/folder/ -t 48 --nj --pca --clean
 ```
 The program's help:
 ```
