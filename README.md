@@ -18,7 +18,7 @@ Marc-Olivier Duceppe: marc-olivier.duceppe@canada.ca
 5. Test installation
 ```
 conda create -n genome_comparator python=3
-conda activate genome comparator
+conda activate genome_comparator
 git clone https://github.com/duceppemo/genome_comparator
 cd genome_comparator
 conda install --file requirements.txt
