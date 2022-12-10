@@ -80,14 +80,17 @@ class MashPhylo(object):
         MashPhylo.write_stats(self.input_dict, os.path.join(self.output, 'sample_stats.txt'))
 
         # Concatenate individual sketch files into a single multi-sketch file
-        self.paste_it(my_dict)
-
         print("Pasting all sketches together...", end="", flush=True)
+        t0 = time()
+        self.paste_it(my_dict)
+        print(" %s" % self.elapsed_time(time() - t0))
+        
+        print("Measuring pairwaise distance between samples...", end="", flush=True)
         t0 = time()
         self.parallel_dist_it(my_dict)
         print(" %s" % self.elapsed_time(time() - t0))
 
-        print("Computing distances...", end="", flush=True)
+        print("Creating distance matrix...", end="", flush=True)
         t0 = time()
         self.create_distance_matrix(my_dict)
         print(" %s" % self.elapsed_time(time() - t0))
