@@ -1,6 +1,6 @@
 # genome_comparator
 A tool to quickly compare and visualize distances between organisms using whole genome information from assemblies
-(fasta) or raw sequening data fastq).
+(fasta) or raw sequening data (fastq).
 
 
 ## Author
