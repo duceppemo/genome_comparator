@@ -95,7 +95,10 @@ class MashPhylo(object):
         self.create_distance_matrix(my_dict)
         print(" %s" % self.elapsed_time(time() - t0))
 
+        print("Cleaning sample names...", end="", flush=True)
+        t0 = time()
         self.clean_samples_names(os.path.join(self.output, 'all_dist.tsv'))
+        print(" %s" % self.elapsed_time(time() - t0))
 
         print("Making tree(s)...")
         self.create_tree(os.path.join(self.output, 'all_dist.tsv'))
