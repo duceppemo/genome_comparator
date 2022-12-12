@@ -301,7 +301,12 @@ class MashPhylo(object):
             info.est_size = str(int(float(stats[0].split(b' ')[-1].decode('ascii'))))
             info.est_cov = stats[1].split(b' ')[-1].decode('ascii')
         else:
-            info.est_size, info.contigs = MashPhylo.get_assembly_info(info.file_path[0])
+            try:
+                info.est_size, info.contigs = MashPhylo.get_assembly_info(info.file_path[0])
+            except EOFError:
+                print('Error reading file: {}'.format(info.file_path[0]))
+                info.est_size = 'N/A'
+                info.contigs = 'N/A'
 
     def parallel_sketch_it(self, sample_dict):
         # we would want to use the ProcessPoolExecutor for CPU intensive tasks.
