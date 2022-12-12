@@ -456,8 +456,9 @@ class MashPhylo(object):
         # Create a new dictionary for renaming
         rename_dict = dict()
         for sample, info in self.input_dict.items():
-            for pa in info.file_path:
-                rename_dict[pa] = sample
+            rename_dict[info.file_path[0]] = sample
+            # for pa in info.file_path:
+            #     rename_dict[pa] = sample
 
         with open(infile + '.tmp', 'w') as tmpfile:
             with open(infile, 'r') as f:
