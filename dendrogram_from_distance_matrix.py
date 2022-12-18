@@ -7,10 +7,11 @@ from time import time
 from scipy.cluster.hierarchy import linkage, to_tree
 from scipy.spatial.distance import squareform
 from skbio import DistanceMatrix
+from sklearn.decomposition import PCA
 from skbio.tree import nj
-from sklearn import manifold
 from scipy.cluster.hierarchy import dendrogram
 import matplotlib.pyplot as plt
+import plotly.express as px
 from argparse import ArgumentParser
 import sys
 
@@ -251,38 +252,29 @@ class Dendro(object):
 
     def make_pca(self, df):
         """
-
+        Make a PCA from a pairwise distance matrix. Output an intective graph in html.
         :param df: pandas dataframe (square matrix)
         :return:
         """
 
-        # dists = squareform(df)
-        # dm = DistanceMatrix(df, labels)
-        mds = manifold.MDS(n_components=2, dissimilarity="precomputed", random_state=6)
-        results = mds.fit(df)
-
-        fig, ax = plt.subplots()
-        coords = results.embedding_
-        plt.subplots_adjust(bottom=0.1)
-        plt.scatter(coords[:, 0], coords[:, 1], marker='o')
-
-        # species = [x.split('_')[1] for x in self.labels]
-        for label, x, y in zip(self.labels, coords[:, 0], coords[:, 1]):
-            plt.annotate(
-                label,
-                xy=(x, y), xytext=(-10, 10),
-                textcoords='offset points', ha='right', va='bottom', fontsize=6,
-                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
-        # texts = [plt.text(x, y, label,
-        #                   ha='center', va='center') for label, x, y in zip(species, coords[:, 0], coords[:, 1])]
-        # from adjustText import adjust_text
-        # adjust_text(texts)
-
-        # Output file name
+        # PCA using sklearn
+        pca = PCA(n_components=2)
+        X2d = pca.fit_transform(df)  # 0s for pairwise distances of 500 genomes
+        fig = px.scatter(x=X2d[:, 0], y=X2d[:, 1], hover_data=[self.labels], labels={
+            "x": "PC1 ({})".format(round(pca.explained_variance_ratio_[0], 2)),
+            "y": "PC2 ({})".format(round(pca.explained_variance_ratio_[1], 2))})
+        fig.update_traces(marker_size=7)
         name = basename(self.input).split('.')[0]  # input file name without extension
-        out_figure_file = self.output + '/' + name + '_PCA.png'
+        fig.write_html(self.output + '/' + name + '_PCA.html', )
 
-        fig.savefig(out_figure_file)
+        # # PCA using MDS
+        # mds = manifold.MDS(n_components=2, dissimilarity="precomputed", random_state=6)
+        # results = mds.fit(df)  # 2s for pairwise distances of 500 genomes
+        # coords = results.embedding_
+        # fig = px.scatter(x=coords[:, 0], y=coords[:, 1], hover_data=[self.labels], labels={"x": "PC1", "y": "PC2"})
+        # fig.update_traces(marker_size=7)
+        # name = basename(self.input).split('.')[0]  # input file name without extension
+        # fig.write_html(self.output + '/' + name + '_PCA.html')
 
 
 if __name__ == "__main__":

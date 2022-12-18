@@ -84,8 +84,8 @@ class MashPhylo(object):
         t0 = time()
         self.paste_it(my_dict)
         print(" %s" % self.elapsed_time(time() - t0))
-        
-        print("Measuring pairwaise distance between samples...", end="", flush=True)
+
+        print("Measuring pairwise distance between samples...", end="", flush=True)
         t0 = time()
         self.parallel_dist_it(my_dict)
         print(" %s" % self.elapsed_time(time() - t0))
@@ -361,7 +361,7 @@ class MashPhylo(object):
 
     @staticmethod
     def paste_sketches(sketch_list_file, output_file):
-        # TODO -> Prevent from writtng to stderr
+        # TODO -> Prevent from writing to stderr
         subprocess.run(['mash', 'paste',
                         output_file,
                         '-l', sketch_list_file])
