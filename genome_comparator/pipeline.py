@@ -2,6 +2,7 @@
 
 import csv
 import logging
+import multiprocessing
 import tempfile
 from collections import deque
 from concurrent import futures
@@ -60,6 +61,15 @@ def build_trees(df, linkage='average', nj=False, me=False, verbose=True):
     return built
 
 
+def worker_context():
+    """
+    Never "fork" worker processes: forking a process that runs threads (thread pools, the process pool's own
+    management thread, test runners...) can deadlock the child. "fork" is the Linux default before Python 3.14.
+    """
+    method = 'forkserver' if 'forkserver' in multiprocessing.get_all_start_methods() else 'spawn'
+    return multiprocessing.get_context(method)
+
+
 def replicate_splits(rep_df, index, rooted, linkage, nj, me):
     """
     Build the trees of one bootstrap replicate and return their clades as bitmasks.
@@ -96,7 +106,7 @@ def add_bootstrap_support(built, replicates, linkage='average', nj=False, me=Fal
         done += 1
         log.info('  %d bootstrap replicate(s) done (%s)', done, elapsed_time(time() - t0))
 
-    with futures.ProcessPoolExecutor(max_workers=workers) as executor:
+    with futures.ProcessPoolExecutor(max_workers=workers, mp_context=worker_context()) as executor:
         pending = deque()
         for rep_df in replicates:
             if set(rep_df.index) != set(index):

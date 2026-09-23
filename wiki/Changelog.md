@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 (2026-09-23)
+* Fixed: `--bootstrap` could hang on Python < 3.14. Worker processes were started with `fork` (the Linux default
+  before Python 3.14), which can deadlock when the parent process runs threads. They now use `forkserver`
+  (or `spawn` where `forkserver` is not available).
+* CI: 20-minute timeout on the test jobs, and no duplicate test runs on tag pushes.
+
 ## 0.4.0 (2026-09-23)
 * New `--bootstrap N` option: support values on all the trees (UPGMA, NJ, ME), from replicates sketched with
   different hash seeds. Replicate trees are built in parallel worker processes.
