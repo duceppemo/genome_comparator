@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.7 (2026-09-23)
 * Fixed: `dendrogram-from-matrix` failed on matrices whose sample names look like numbers (`001`, `1e3`): they were
   parsed as numbers and no longer matched between rows and columns. Names are now kept as written.
 * Fixed: Ctrl-C during sketching still ran every queued sample before stopping.
