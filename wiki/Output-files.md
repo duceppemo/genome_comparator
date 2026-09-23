@@ -40,4 +40,13 @@ View the trees in [FigTree](http://tree.bio.ed.ac.uk/software/figtree/), [iTOL](
 ## PCoA
 The principal coordinates analysis (classical multidimensional scaling) is the equivalent of a PCA for a distance
 matrix. The axis titles give the percentage of variance explained. Hovering over a point shows the sample name and
-the metadata columns (`--metadata`). Points can be coloured by a metadata column (`--color-by`).
+the metadata columns (`--metadata`). See [How it works](How-it-works#reading-the-pcoa) to interpret it.
+
+With `--color-by`, each category gets its own colour **and** marker shape, so groups can be told apart without
+relying on colour alone:
+* Colours come from the colourblind-friendly [Okabe-Ito](https://jfly.uni-koeln.de/color/) palette, in a fixed order.
+  They were checked for all common colour vision deficiencies with every pair of colours side by side.
+* Categories are assigned in alphabetical order, so a category keeps its colour and shape between runs.
+* 6 colours × 7 shapes give 42 unique combinations. If there are more categories, the least frequent ones are grouped
+  into "Other" (grey).
+* Samples missing from the metadata file are shown as "Unknown" (grey open circles).

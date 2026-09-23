@@ -10,12 +10,28 @@ support, and an interactive PCoA plot.
 It scales to thousands of genomes: sketches are computed in parallel, reused between runs, and all the pairwise
 distances are computed in a single multithreaded Mash call.
 
-## Pages
+![Neighbour joining tree of 22 Listeria genomes](https://raw.githubusercontent.com/duceppemo/genome_comparator/master/assets/tree.png)
+
+## Getting started
 * [Installation](Installation)
+* [Tutorial](Tutorial): 22 public *Listeria* genomes, step by step
 * [Usage](Usage): input files, options and examples
+
+## Understanding the results
 * [Output files](Output-files)
+* [How it works](How-it-works): interpreting distances, trees and the PCoA
 * [Bootstrap support](Bootstrap-support)
+* [Performance](Performance)
+
+## Reference
 * [Other tools](Other-tools): `dendrogram-from-matrix`, `tree-collapser`, `tree-renamer`
+* [Related tools](Related-tools)
 * [Troubleshooting](Troubleshooting)
+* [FAQ](FAQ)
 * [Changelog](Changelog)
 * [Contributing](Contributing)
+
+## Citing
+Please cite this repository ([`CITATION.cff`](https://github.com/duceppemo/genome_comparator/blob/master/CITATION.cff))
+and Mash: Ondov BD *et al.* Mash: fast genome and metagenome distance estimation using MinHash.
+*Genome Biology* 17, 132 (2016). https://doi.org/10.1186/s13059-016-0997-x

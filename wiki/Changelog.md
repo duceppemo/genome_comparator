@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.3 (2026-09-23)
+* PCoA plots use a colourblind-friendly palette (Okabe-Ito) and one marker shape per category, instead of Plotly's
+  default colours. Missing metadata is shown as "Unknown"; past 42 categories, the least frequent ones are grouped
+  into "Other".
+* Fixed: `sample_stats.tsv` left the number of sequences empty for single-sequence assemblies (e.g. complete genomes).
+* New example dataset (`examples/listeria/`, 22 public genomes) and wiki pages: Tutorial, How it works,
+  Performance, Related tools and FAQ.
+* README with example figures, features, citation information; `CITATION.cff`, `CONTRIBUTING.md`, code of conduct,
+  security policy, and issue and pull request templates.
+
 ## 0.4.2 (2026-09-23)
 * `mash-phylo` now finds Mash in its own conda environment when `mash` is not in the `PATH`, so
   `/path/to/envs/genome_comparator/bin/mash-phylo` works without activating the environment.

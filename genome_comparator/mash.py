@@ -172,19 +172,26 @@ def info(msh):
     """
     Read per-sketch information from a sketch file.
 
-    :return: dict {sketch_id: {'length': int, 'num_seqs': int or None}}
+    :return: dict {sketch_id: {'length': int, 'num_seqs': int}}
              'length' is the total sequence length for assemblies and the estimated genome size for reads.
     """
+    return parse_info(run(['mash', 'info', '-t', msh]).stdout)
+
+
+def parse_info(text):
+    """
+    Parse "mash info -t" output. The comment column starts with "[N seqs]" when a sketch was made from several
+    sequences; otherwise it is the header of the only sequence (e.g. a complete genome with a single chromosome).
+    """
     result = dict()
-    for line in run(['mash', 'info', '-t', msh]).stdout.splitlines():
+    for line in text.splitlines():
         if not line or line.startswith('#'):
             continue
         fields = line.split('\t')
         if len(fields) < 3:
             continue
         seqs = re.match(r'\[(\d+) seqs?\]', fields[3]) if len(fields) > 3 else None
-        result[fields[2]] = {'length': int(fields[1]),
-                             'num_seqs': int(seqs.group(1)) if seqs else None}
+        result[fields[2]] = {'length': int(fields[1]), 'num_seqs': int(seqs.group(1)) if seqs else 1}
     return result
 
 

@@ -219,3 +219,47 @@ def test_mash_not_found(fake_mash):
     assert mash.executable() is None
     with pytest.raises(MashError, match='not found'):
         mash.check_mash()
+
+
+def test_category_styles_are_unique_and_stable():
+    from genome_comparator.ordination import NEUTRAL, category_styles
+    values = pd.Series(['b', 'a', None, 'c', 'a'])
+    labels, styles, order = category_styles(values)
+    assert order == ['a', 'b', 'c', 'Unknown']
+    assert list(labels) == ['b', 'a', 'Unknown', 'c', 'a']
+    assert styles['Unknown'][0] == NEUTRAL
+    assert len({styles[c] for c in 'abc'}) == 3
+    # Adding a category does not change the style of the others
+    _, styles2, _ = category_styles(pd.Series(['a', 'b', 'c', 'aa']))
+    assert styles2['a'] == styles['a']
+
+
+def test_category_styles_fold_extra_categories_into_other():
+    from genome_comparator.ordination import PALETTE, SYMBOLS, category_styles
+    n = len(PALETTE) * len(SYMBOLS) + 5
+    labels, styles, order = category_styles(pd.Series(['c{:02d}'.format(i) for i in range(n)] + ['c00'] * 3))
+    assert order[-1] == 'Other' and 'c00' in order  # The most frequent category is kept
+    real = [c for c in order if c != 'Other']
+    assert len({styles[c] for c in real}) == len(real) == len(PALETTE) * len(SYMBOLS) - 1
+
+
+def test_pcoa_html(tmp_path):
+    from genome_comparator import ordination
+    df = square(list('ABCD'), [[0, .1, .5, .5], [.1, 0, .5, .5], [.5, .5, 0, .1], [.5, .5, .1, 0]])
+    coords, explained = ordination.pcoa(df)
+    meta = pd.DataFrame({'group': ['x', 'x', 'y']}, index=['A', 'B', 'C'])  # D missing
+    fig = ordination.pcoa_figure(coords, explained, meta, 'group')
+    assert {t.name for t in fig.data} == {'x', 'y', 'Unknown'}
+    ordination.plot_pcoa(coords, explained, tmp_path / 'p.html', meta, 'group')
+    assert (tmp_path / 'p.html').stat().st_size > 0
+
+
+def test_parse_info_counts_single_sequence():
+    from genome_comparator.mash import parse_info
+    text = ('#Hashes\tLength\tID\tComment\n'
+            '1000\t2905187\tF2365\tNC_002973.6 Listeria monocytogenes F2365, complete sequence\n'
+            '1000\t3091600\tR2-502\t[2 seqs] NC_021838.1 Listeria monocytogenes [...]\n'
+            '1000\t191866\treads\t[8000 seqs] r0 [...]\n')
+    assert parse_info(text) == {'F2365': {'length': 2905187, 'num_seqs': 1},
+                                'R2-502': {'length': 3091600, 'num_seqs': 2},
+                                'reads': {'length': 191866, 'num_seqs': 8000}}

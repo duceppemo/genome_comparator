@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use genome_comparator, please cite it as below, together with Mash."
+title: "genome_comparator: fast comparison and visualization of genome distances with Mash"
+type: software
+authors:
+  - family-names: Duceppe
+    given-names: Marc-Olivier
+    email: marc-olivier.duceppe@inspection.gc.ca
+    affiliation: Canadian Food Inspection Agency
+version: 0.4.3
+date-released: "2026-09-23"
+license: MIT
+repository-code: "https://github.com/duceppemo/genome_comparator"
+url: "https://github.com/duceppemo/genome_comparator/wiki"
+keywords:
+  - bioinformatics
+  - genomics
+  - mash
+  - minhash
+  - phylogenetics
+  - microbial genomics
+references:
+  - type: article
+    title: "Mash: fast genome and metagenome distance estimation using MinHash"
+    authors:
+      - family-names: Ondov
+        given-names: Brian D.
+      - family-names: Treangen
+        given-names: Todd J.
+      - family-names: Melsted
+        given-names: Páll
+      - family-names: Mallonee
+        given-names: Adam B.
+      - family-names: Bergman
+        given-names: Nicholas H.
+      - family-names: Koren
+        given-names: Sergey
+      - family-names: Phillippy
+        given-names: Adam M.
+    journal: Genome Biology
+    volume: 17
+    start: 132
+    year: 2016
+    doi: 10.1186/s13059-016-0997-x
