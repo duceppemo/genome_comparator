@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+* Fixed: `dendrogram-from-matrix` failed on matrices whose sample names look like numbers (`001`, `1e3`): they were
+  parsed as numbers and no longer matched between rows and columns. Names are now kept as written.
+* Fixed: Ctrl-C during sketching still ran every queued sample before stopping.
+* Fixed: a sample listed twice in the metadata file was plotted twice in the PCoA; it is now an error.
+* Fixed: a metadata category named "Other" was shown in grey and listed twice in the legend.
+* Infinite values in a distance matrix are rejected like missing values.
+* The command is logged with quotes so it can be copied and run again as is.
+
 ## 0.4.6 (2026-09-23)
 * Available on PyPI: `pip install genome-comparator` (Mash must be installed separately). Releases are published
   to PyPI automatically.

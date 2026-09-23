@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shlex
 import sys
 from argparse import ArgumentParser, ArgumentTypeError, ArgumentDefaultsHelpFormatter
 from pathlib import Path
@@ -142,7 +143,9 @@ def main(argv=None):
     output = Path(args.output).expanduser()
     output.mkdir(parents=True, exist_ok=True)
     setup_logging(args.verbose, output / 'genome_comparator.log')
-    log.info('genome_comparator %s: %s', __version__, ' '.join(sys.argv))
+    # Quoted so the logged command can be copied and run again as is
+    log.info('genome_comparator %s: %s', __version__,
+             shlex.join([parser.prog, *(sys.argv[1:] if argv is None else argv)]))
 
     run_safely(GenomeComparator(args.input, args.output, threads=args.threads, kmer_size=args.kmer_size,
                                 sketch_size=args.sketch_size, min_copies=args.min_copies, phylip=args.phylip,

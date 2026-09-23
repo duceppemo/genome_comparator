@@ -38,6 +38,9 @@ def read_metadata(path, color_by=None):
     """Read a tab-separated metadata file. First column must hold the sample names."""
     meta = pd.read_csv(path, sep='\t', index_col=0, dtype=str)
     meta.index = meta.index.astype(str)
+    if meta.index.has_duplicates:
+        duplicates = sorted(set(meta.index[meta.index.duplicated()]))
+        raise ValueError('Sample name(s) listed several times in metadata file: {}'.format(', '.join(duplicates[:10])))
     if color_by and color_by not in meta.columns:
         raise ValueError('Column "{}" not found in metadata file. Available columns: {}'.format(
             color_by, ', '.join(meta.columns)))
@@ -65,17 +68,18 @@ def category_styles(values):
     values = values.fillna('Unknown').astype(str)
     categories = sorted(set(values) - {'Unknown'})
     max_styles = len(PALETTE) * len(SYMBOLS)
+    extras = list()  # Neutral-styled groups, shown last in the legend
     if len(categories) > max_styles:
         keep = set(values[values != 'Unknown'].value_counts().index[:max_styles - 1])
         values = values.where(values.isin(keep) | (values == 'Unknown'), 'Other')
-        categories = sorted(keep)
+        categories = sorted(keep - {'Other'})
+        extras.append('Other')
+    if (values == 'Unknown').any():
+        extras.append('Unknown')
     styles = {c: (PALETTE[i % len(PALETTE)], SYMBOLS[i % len(SYMBOLS)]) for i, c in enumerate(categories)}
-    order = list(categories)
-    for extra in ('Other', 'Unknown'):
-        if (values == extra).any():
-            styles[extra] = (NEUTRAL, 'circle-open')
-            order.append(extra)
-    return values, styles, order
+    for extra in extras:
+        styles[extra] = (NEUTRAL, 'circle-open')
+    return values, styles, categories + extras
 
 
 def pcoa_figure(coords, explained, metadata=None, color_by=None, title=None):

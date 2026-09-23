@@ -19,26 +19,32 @@ def read_matrix(path):
     """
     path = Path(path)
     ext = path.suffix.lower()
+    # dtype=str keeps sample names such as "001" or "1e3" as written instead of parsing them as numbers
     if ext in ('.xlsx', '.xls'):
         try:
-            df = pd.read_excel(path, index_col=0, header=0)
+            df = pd.read_excel(path, index_col=0, header=0, dtype=str)
         except ImportError:
             raise MatrixError('Reading "{}" files requires an extra package: install it with '
                               '"conda install -c conda-forge xlrd", or save the file as .xlsx or .tsv'.format(ext))
     elif ext == '.csv':
-        df = pd.read_csv(path, index_col=0, header=0)
+        df = pd.read_csv(path, index_col=0, header=0, dtype=str)
     elif ext in ('.tsv', '.txt', '.tab'):
-        df = pd.read_csv(path, index_col=0, header=0, sep='\t')
+        df = pd.read_csv(path, index_col=0, header=0, sep='\t', dtype=str)
     else:
         raise MatrixError('Invalid input file type "{}". The distance matrix must be in Excel '
                           '(".xlsx" or ".xls") or text format (".csv" or ".tsv")'.format(ext))
     return validate(df)
 
 
+def labels_to_str(labels):
+    """Sample names as strings. Integral numbers (e.g. numeric IDs read from Excel) are written without ".0"."""
+    return [str(int(x)) if isinstance(x, float) and x.is_integer() else str(x) for x in labels]
+
+
 def validate(df):
     """Check that a distance matrix is square, symmetric and complete, and sort it by sample name."""
-    df.index = df.index.astype(str)
-    df.columns = df.columns.astype(str)
+    df.index = labels_to_str(df.index)
+    df.columns = labels_to_str(df.columns)
 
     if df.shape[0] != df.shape[1]:
         raise MatrixError('Distance matrix is not square ({} rows x {} columns)'.format(*df.shape))
@@ -52,8 +58,8 @@ def validate(df):
     df = df.loc[labels, labels].apply(pd.to_numeric, errors='coerce')
     values = df.to_numpy(dtype=float)
 
-    if np.isnan(values).any():
-        raise MatrixError('Distance matrix has missing or non-numeric values')
+    if not np.isfinite(values).all():
+        raise MatrixError('Distance matrix has missing, infinite or non-numeric values')
     if not np.allclose(values, values.T, atol=1e-6):
         raise MatrixError('Distance matrix is not symmetric')
     if (values < 0).any():

@@ -40,6 +40,20 @@ def step(message):
     log.info('%s done in %s', message, elapsed_time(time() - t0))
 
 
+@contextmanager
+def thread_pool(threads):
+    """
+    ThreadPoolExecutor that drops its queued jobs on Ctrl-C. By default, the executor still runs every job
+    submitted before the interruption, so stopping a run on thousands of samples could take as long as the run.
+    """
+    with futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        try:
+            yield executor
+        except KeyboardInterrupt:
+            executor.shutdown(cancel_futures=True)
+            raise
+
+
 TREE_BUILDERS = {
     'hc': ('hierarchical clustering tree', lambda df, linkage: trees.hc_tree(df, linkage)),
     'me': ('minimum evolution tree', lambda df, linkage: trees.me_tree(df)),
@@ -255,7 +269,7 @@ class GenomeComparator:
         """Sketch all samples in parallel, one Mash process per sample."""
         sketches, stats, failed = dict(), dict(), dict()
         reused = 0
-        with futures.ThreadPoolExecutor(max_workers=self.threads) as executor:
+        with thread_pool(self.threads) as executor:
             jobs = {executor.submit(mash.sketch_or_reuse, sample, self.sketch_dir, self.kmer_size,
                                     self.sketch_size, self.min_copies, self.force): name
                     for name, sample in samples.items()}
@@ -287,7 +301,7 @@ class GenomeComparator:
                     mash.sketch(sample, prefix, self.kmer_size, self.sketch_size, self.min_copies, seed=seed)
                     return prefix.with_name(prefix.name + '.msh')
 
-                with futures.ThreadPoolExecutor(max_workers=self.threads) as executor:
+                with thread_pool(self.threads) as executor:
                     sketch_files = list(executor.map(sketch, samples))
                 all_msh = Path(tmp, 'all.msh')
                 mash.paste(sketch_files, all_msh)

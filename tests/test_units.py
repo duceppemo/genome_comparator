@@ -86,10 +86,28 @@ def test_validate_sorts_rows_and_columns():
     square(['A', 'A'], [[0, .1], [.1, 0]]),  # Duplicated names
     pd.DataFrame([[0, .1]], index=['A'], columns=['A', 'B']),  # Not square
     square(['A', 'B'], [[0, np.nan], [np.nan, 0]]),  # Missing values
+    square(['A', 'B'], [[0, np.inf], [np.inf, 0]]),  # Infinite values
+    square(['A', 'B'], [[0, -.1], [-.1, 0]]),  # Negative values
 ])
 def test_validate_rejects_bad_matrices(df):
     with pytest.raises(matrix.MatrixError):
         matrix.validate(df)
+
+
+def test_read_matrix_keeps_numeric_looking_names(tmp_path):
+    # "001" used to be parsed as the number 1, which no longer matched the "001" column name
+    path = tmp_path / 'm.tsv'
+    path.write_text('#query\t001\t002\t1e3\n001\t0\t0.1\t0.2\n002\t0.1\t0\t0.3\n1e3\t0.2\t0.3\t0\n')
+    assert list(matrix.read_matrix(path).index) == ['001', '002', '1e3']
+    path = tmp_path / 'm.csv'
+    path.write_text(',7,8,9\n7,0,0.1,0.2\n8,0.1,0,0.3\n9,0.2,0.3,0\n')
+    assert list(matrix.read_matrix(path).index) == ['7', '8', '9']
+
+
+def test_validate_writes_integral_names_without_decimals():
+    # Excel hands numeric sample IDs over as floats
+    df = pd.DataFrame(np.zeros((2, 2)), index=[1.0, 2.0], columns=[1.0, 2.0])
+    assert list(matrix.validate(df).index) == ['1', '2']
 
 
 def test_read_write_matrix_roundtrip(tmp_path):
@@ -185,6 +203,22 @@ def test_bootstrap_support_in_parallel():
         assert supports and all(0 <= s <= 100 for s in supports)
 
 
+def test_thread_pool_drops_queued_jobs_on_interrupt():
+    import time
+    from genome_comparator.pipeline import thread_pool
+    ran = list()
+
+    def job(i):
+        time.sleep(0.01)
+        ran.append(i)
+
+    with pytest.raises(KeyboardInterrupt):
+        with thread_pool(1) as executor:
+            [executor.submit(job, i) for i in range(50)]
+            raise KeyboardInterrupt
+    assert len(ran) < 50  # Without cancellation, every queued job runs before the executor shuts down
+
+
 @pytest.fixture
 def fake_mash(tmp_path, monkeypatch):
     """A fake "mash" next to a fake Python interpreter, and an empty PATH."""
@@ -247,6 +281,21 @@ def test_category_styles_fold_extra_categories_into_other():
     assert order[-1] == 'Other' and 'c00' in order  # The most frequent category is kept
     real = [c for c in order if c != 'Other']
     assert len({styles[c] for c in real}) == len(real) == len(PALETTE) * len(SYMBOLS) - 1
+
+
+def test_category_named_other_keeps_its_own_style():
+    from genome_comparator.ordination import NEUTRAL, category_styles
+    _, styles, order = category_styles(pd.Series(['x', 'Other', 'y']))
+    assert order == ['Other', 'x', 'y']  # Listed once, as a normal category
+    assert styles['Other'][0] != NEUTRAL
+
+
+def test_metadata_rejects_duplicated_sample_names(tmp_path):
+    from genome_comparator.ordination import read_metadata
+    path = tmp_path / 'meta.tsv'
+    path.write_text('sample\tgroup\nA\tx\nA\ty\nB\tz\n')
+    with pytest.raises(ValueError, match='A'):
+        read_metadata(path, 'group')
 
 
 def test_pcoa_html(tmp_path):

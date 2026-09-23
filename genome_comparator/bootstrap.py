@@ -45,7 +45,7 @@ def node_splits(tree, index, rooted):
     for node, mask in clade_masks(tree, index).items():
         if not rooted:
             mask = canonical_split(mask, n_tips)
-        size = bin(mask).count('1')
+        size = mask.bit_count()
         if 1 < size < n_tips - (0 if rooted else 1):
             splits[node] = mask
     return splits

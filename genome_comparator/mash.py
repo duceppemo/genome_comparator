@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -53,12 +54,12 @@ def command(cmd):
 def run(cmd, **kwargs):
     """Run a command, raise MashError with its stderr if it fails."""
     cmd = command(cmd)
-    log.debug('Running: %s', ' '.join(cmd))
+    log.debug('Running: %s', shlex.join(cmd))
     proc = subprocess.run(cmd, capture_output=True, text=True, **kwargs)
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout).strip().splitlines()
         raise MashError('Command failed (exit code {}): {}\n{}'.format(
-            proc.returncode, ' '.join(cmd), '\n'.join(detail[-10:])))
+            proc.returncode, shlex.join(cmd), '\n'.join(detail[-10:])))
     return proc
 
 
@@ -203,7 +204,7 @@ def triangle(msh, threads=1):
     """
     with tempfile.TemporaryFile('w+') as err:
         cmd = command(['mash', 'triangle', '-p', threads, msh])
-        log.debug('Running: %s', ' '.join(cmd))
+        log.debug('Running: %s', shlex.join(cmd))
         parse_error = None
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True) as proc:
             try:
