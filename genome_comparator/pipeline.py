@@ -186,9 +186,9 @@ class MashPhylo:
     def run(self):
         start_time = time()
 
-        version = mash.check_mash()
-        log.info('Using Mash %s, k-mer size %d, sketch size %d, %d thread(s)',
-                 version, self.kmer_size, self.sketch_size, self.threads)
+        version, mash_path = mash.check_mash()
+        log.info('Using Mash %s (%s), k-mer size %d, sketch size %d, %d thread(s)',
+                 version, mash_path, self.kmer_size, self.sketch_size, self.threads)
 
         if not self.input_dir.is_dir():
             raise SampleError('Input folder "{}" does not exist or is not a folder'.format(self.input_dir))

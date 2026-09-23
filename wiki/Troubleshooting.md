@@ -1,9 +1,12 @@
 # Troubleshooting
 
-### `"mash" was not found in your PATH`
-Activate the conda environment before running the commands: `conda activate genome_comparator`.
-Calling `/path/to/envs/genome_comparator/bin/mash-phylo` directly, without activating the environment, does not put
-`mash` in your `PATH`.
+### `"mash" was not found`
+`mash-phylo` uses the `mash` found in your `PATH` first, then the one installed next to its own Python interpreter
+(the `bin/` folder of the conda environment). Calling `/path/to/envs/genome_comparator/bin/mash-phylo` without
+activating the environment therefore works if Mash is installed in that environment. The log shows which `mash`
+was used.
+
+If Mash cannot be found in either place, install it in the environment: `conda install -c bioconda mash`.
 
 ### `mash: error while loading shared libraries: libgsl.so.25`
 Older bioconda builds of Mash are linked to GSL 2.6. Recreate the environment from `environment.yml`, which requires

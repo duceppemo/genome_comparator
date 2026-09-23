@@ -7,9 +7,10 @@ import pandas as pd
 import pytest
 
 from genome_comparator.cli import main
+from genome_comparator.mash import executable
 from genome_comparator.trees import read_newick
 
-pytestmark = pytest.mark.skipif(shutil.which('mash') is None, reason='mash is not installed')
+pytestmark = pytest.mark.skipif(executable() is None, reason='mash is not installed')
 
 
 def mutate(seq, rate, rng):

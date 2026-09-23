@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 (2026-09-23)
+* `mash-phylo` now finds Mash in its own conda environment when `mash` is not in the `PATH`, so
+  `/path/to/envs/genome_comparator/bin/mash-phylo` works without activating the environment.
+  The log shows which `mash` was used.
+
 ## 0.4.1 (2026-09-23)
 * Fixed: `--bootstrap` could hang on Python < 3.14. Worker processes were started with `fork` (the Linux default
   before Python 3.14), which can deadlock when the parent process runs threads. They now use `forkserver`

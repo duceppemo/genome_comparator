@@ -177,3 +177,45 @@ def test_bootstrap_support_in_parallel():
     for kind in ('nj', 'me'):
         supports = [n.support for n in built[kind].non_tips()]
         assert supports and all(0 <= s <= 100 for s in supports)
+
+
+@pytest.fixture
+def fake_mash(tmp_path, monkeypatch):
+    """A fake "mash" next to a fake Python interpreter, and an empty PATH."""
+    from genome_comparator import mash
+    env_bin = tmp_path / 'env' / 'bin'
+    env_bin.mkdir(parents=True)
+    fake = env_bin / 'mash'
+    fake.write_text('#!/bin/sh\necho 2.3\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv('PATH', str(tmp_path / 'empty'))
+    monkeypatch.setattr(mash.sys, 'executable', str(env_bin / 'python'))
+    mash.executable.cache_clear()
+    yield fake
+    mash.executable.cache_clear()
+
+
+def test_mash_fallback_to_env_bin(fake_mash):
+    from genome_comparator import mash
+    assert mash.executable() == str(fake_mash)
+    assert mash.check_mash() == ('2.3', str(fake_mash))
+    assert mash.command(['mash', 'info', 1]) == [str(fake_mash), 'info', '1']
+
+
+def test_mash_in_path_wins(fake_mash, tmp_path, monkeypatch):
+    from genome_comparator import mash
+    path_bin = tmp_path / 'path_bin'
+    path_bin.mkdir()
+    in_path = path_bin / 'mash'
+    in_path.write_text('#!/bin/sh\necho 2.2\n')
+    in_path.chmod(0o755)
+    monkeypatch.setenv('PATH', str(path_bin))
+    assert mash.executable() == str(in_path)
+
+
+def test_mash_not_found(fake_mash):
+    from genome_comparator import mash
+    fake_mash.unlink()
+    assert mash.executable() is None
+    with pytest.raises(MashError, match='not found'):
+        mash.check_mash()

@@ -6,7 +6,9 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+from functools import cache
 from pathlib import Path
 
 import numpy as np
@@ -22,22 +24,50 @@ class MashError(Exception):
     pass
 
 
+@cache
+def executable():
+    """
+    Path of the mash executable: the one in the PATH, otherwise the one installed next to the running Python.
+    The fallback makes "/path/to/env/bin/mash-phylo" work without activating the conda environment.
+
+    :return: path to mash, or None if it cannot be found
+    """
+    found = shutil.which('mash')
+    if found:
+        return found
+    # Do not resolve symlinks: a virtualenv's python is a symlink to the base interpreter
+    candidate = Path(sys.executable).parent / 'mash'
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+    return None
+
+
+def command(cmd):
+    """Replace "mash" by the full path of the mash executable and convert all arguments to strings."""
+    cmd = [str(c) for c in cmd]
+    if cmd and cmd[0] == 'mash':
+        cmd[0] = executable() or 'mash'
+    return cmd
+
+
 def run(cmd, **kwargs):
     """Run a command, raise MashError with its stderr if it fails."""
-    log.debug('Running: %s', ' '.join(map(str, cmd)))
-    proc = subprocess.run([str(c) for c in cmd], capture_output=True, text=True, **kwargs)
+    cmd = command(cmd)
+    log.debug('Running: %s', ' '.join(cmd))
+    proc = subprocess.run(cmd, capture_output=True, text=True, **kwargs)
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout).strip().splitlines()
         raise MashError('Command failed (exit code {}): {}\n{}'.format(
-            proc.returncode, ' '.join(map(str, cmd)), '\n'.join(detail[-10:])))
+            proc.returncode, ' '.join(cmd), '\n'.join(detail[-10:])))
     return proc
 
 
 def check_mash():
-    """Make sure Mash is installed and return its version."""
-    if shutil.which('mash') is None:
-        raise MashError('"mash" was not found in your PATH. '
-                        'Install it with "conda install -c bioconda mash".')
+    """Make sure Mash is installed and return (version, path)."""
+    if executable() is None:
+        raise MashError('"mash" was not found in your PATH or in "{}". '
+                        'Activate the conda environment or install Mash with "conda install -c bioconda mash".'
+                        .format(Path(sys.executable).parent))
     version = run(['mash', '--version']).stdout.strip()
     try:
         major = int(version.split('.')[0])
@@ -45,7 +75,7 @@ def check_mash():
         major = 0
     if major < 2:
         raise MashError('Mash version 2 or later is required (found "{}")'.format(version))
-    return version
+    return version, executable()
 
 
 def sketch(sample, out_prefix, kmer_size, sketch_size, min_copies, seed=DEFAULT_SEED):
@@ -165,7 +195,7 @@ def triangle(msh, threads=1):
     :return: (names, square symmetric numpy distance matrix, max p-value or None)
     """
     with tempfile.TemporaryFile('w+') as err:
-        cmd = ['mash', 'triangle', '-p', str(threads), str(msh)]
+        cmd = command(['mash', 'triangle', '-p', threads, msh])
         log.debug('Running: %s', ' '.join(cmd))
         parse_error = None
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True) as proc:
