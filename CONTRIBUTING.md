@@ -38,5 +38,10 @@ those changes would be overwritten. Edit the files in `wiki/` in your pull reque
 1. Update the version in `genome_comparator/__init__.py` and `CITATION.cff` (`version` and `date-released`).
 2. Rename "Unreleased" in `wiki/Changelog.md` to the version and date.
 3. Commit, tag (`git tag -a vX.Y.Z`), push the commit and the tag, then create the GitHub release once the tests pass.
-4. Zenodo archives the release automatically and gives it a DOI (this can take a while when Zenodo is busy).
-   Add the version DOI to the `identifiers` in `CITATION.cff`. The concept DOI in the README never changes.
+4. Publishing the GitHub release automatically:
+   * uploads the package to [PyPI](https://pypi.org/project/genome-comparator/) (`.github/workflows/publish.yml`,
+     trusted publishing: no token needed; the release tag must match the package version);
+   * archives it on Zenodo with a new DOI (this can take a while when Zenodo is busy). Add the version DOI to the
+     `identifiers` in `CITATION.cff`; the concept DOI in the README never changes.
+5. Bioconda: update `recipe/meta.yaml` (version and sha256 of the new GitHub tarball). Bioconda's bot usually opens
+   the pull request to `bioconda-recipes` on its own for new releases; otherwise copy the recipe and open it by hand.

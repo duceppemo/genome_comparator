@@ -7,6 +7,7 @@
 <p align="center">
   <a href="https://github.com/duceppemo/genome_comparator/actions/workflows/tests.yml"><img src="https://github.com/duceppemo/genome_comparator/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://github.com/duceppemo/genome_comparator/releases/latest"><img src="https://img.shields.io/github/v/release/duceppemo/genome_comparator" alt="Release"></a>
+  <a href="https://pypi.org/project/genome-comparator/"><img src="https://img.shields.io/pypi/v/genome-comparator" alt="PyPI"></a>
   <a href="https://codecov.io/gh/duceppemo/genome_comparator"><img src="https://codecov.io/gh/duceppemo/genome_comparator/graph/badge.svg" alt="Coverage"></a>
   <img src="https://img.shields.io/badge/python-3.10%E2%80%933.14-blue" alt="Python 3.10–3.14">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/duceppemo/genome_comparator" alt="License"></a>
@@ -44,6 +45,12 @@ flowchart LR
 ```
 
 ## Installation
+With pip. Mash is not available from PyPI: install it separately (e.g. `conda install -c bioconda mash`).
+```
+pip install genome-comparator
+```
+
+Or from source, in a conda environment that includes Mash:
 ```
 git clone https://github.com/duceppemo/genome_comparator
 cd genome_comparator

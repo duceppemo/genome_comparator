@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.6 (2026-09-23)
+* Available on PyPI: `pip install genome-comparator` (Mash must be installed separately). Releases are published
+  to PyPI automatically.
+* Bioconda recipe in `recipe/meta.yaml`.
+* Package metadata: keywords, classifiers, and links to the documentation, changelog, issues and DOI.
 * Releases are archived on Zenodo: https://doi.org/10.5281/zenodo.22920856 (all versions). DOI badge and citation
   added to the README and `CITATION.cff`.
 

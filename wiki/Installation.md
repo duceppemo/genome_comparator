@@ -5,7 +5,16 @@
 * [Mash](https://github.com/marbl/Mash) 2.0 or later (installed automatically with conda)
 * Python 3.10 or later with numpy, pandas, scipy, scikit-bio (≥ 0.7), plotly and openpyxl
 
-## With conda (recommended)
+## With pip
+```
+pip install genome-comparator
+genome-comparator --version
+```
+Mash is not available from PyPI and must be installed separately, for example with
+`conda install -c bioconda mash`, or from the [Mash releases](https://github.com/marbl/Mash/releases).
+`genome-comparator` finds `mash` in your `PATH`, or next to the Python interpreter it runs with.
+
+## From source with conda
 ```
 git clone https://github.com/duceppemo/genome_comparator
 cd genome_comparator
