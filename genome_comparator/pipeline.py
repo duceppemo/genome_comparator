@@ -2,6 +2,8 @@
 
 import csv
 import logging
+import tempfile
+from collections import deque
 from concurrent import futures
 from contextlib import contextmanager
 from pathlib import Path
@@ -10,11 +12,13 @@ from time import time
 import pandas as pd
 
 from . import mash, matrix, ordination, trees
+from .bootstrap import ROOTED_TREES, SupportCounter, node_splits
 from .samples import SampleError, find_samples
 
 log = logging.getLogger(__name__)
 
 MIN_SAMPLES = 3  # Minimum number of samples to build a tree
+MAX_TREE_WORKERS = 8  # Processes building bootstrap trees in parallel
 
 
 def elapsed_time(seconds):
@@ -35,36 +39,103 @@ def step(message):
     log.info('%s done in %s', message, elapsed_time(time() - t0))
 
 
+TREE_BUILDERS = {
+    'hc': ('hierarchical clustering tree', lambda df, linkage: trees.hc_tree(df, linkage)),
+    'me': ('minimum evolution tree', lambda df, linkage: trees.me_tree(df)),
+    'nj': ('neighbour joining tree', lambda df, linkage: trees.nj_tree(df)),
+}
+
+
+def build_trees(df, linkage='average', nj=False, me=False, verbose=True):
+    """:return: dict {tree kind: TreeNode}. The "hc" tree is always built."""
+    kinds = ['hc'] + (['me'] if me else []) + (['nj'] if nj else [])
+    built = dict()
+    for kind in kinds:
+        label, builder = TREE_BUILDERS[kind]
+        if verbose:
+            with step('Building {}{}'.format(label, ' ({})'.format(linkage) if kind == 'hc' else '')):
+                built[kind] = builder(df, linkage)
+        else:
+            built[kind] = builder(df, linkage)
+    return built
+
+
+def replicate_splits(rep_df, index, rooted, linkage, nj, me):
+    """
+    Build the trees of one bootstrap replicate and return their clades as bitmasks.
+    Runs in a worker process: only the small sets of bitmasks are sent back, not the trees.
+
+    :param rooted: dict {tree kind: True if the tree is rooted}
+    """
+    built = build_trees(rep_df, linkage, nj, me, verbose=False)
+    return {kind: set(node_splits(tree, index, rooted[kind]).values()) for kind, tree in built.items()}
+
+
+def add_bootstrap_support(built, replicates, linkage='average', nj=False, me=False, workers=1):
+    """
+    Build the same trees from each replicate distance matrix and set the support of every clade of the
+    reference trees to the % of replicate trees containing it.
+
+    Replicate trees are built in parallel worker processes while the next replicate matrices are produced.
+    At most workers + 1 replicate matrices are kept in memory at once.
+
+    :param built: reference trees from build_trees()
+    :param replicates: iterable of replicate distance matrices (same samples as the reference)
+    :param workers: number of processes building replicate trees
+    """
+    counters = {kind: SupportCounter(tree, rooted=kind in ROOTED_TREES) for kind, tree in built.items()}
+    index = next(iter(counters.values())).index
+    rooted = {kind: counter.rooted for kind, counter in counters.items()}
+    t0 = time()
+    done = 0
+
+    def collect(job):
+        nonlocal done
+        for kind, found in job.result().items():
+            counters[kind].add_splits(found)
+        done += 1
+        log.info('  %d bootstrap replicate(s) done (%s)', done, elapsed_time(time() - t0))
+
+    with futures.ProcessPoolExecutor(max_workers=workers) as executor:
+        pending = deque()
+        for rep_df in replicates:
+            if set(rep_df.index) != set(index):
+                raise ValueError('Bootstrap replicate has different samples than the reference matrix')
+            pending.append(executor.submit(replicate_splits, rep_df, index, rooted, linkage, nj, me))
+            # Wait when too many replicates are queued; otherwise just collect the finished ones (in order)
+            while pending and (len(pending) > workers or pending[0].done()):
+                collect(pending.popleft())
+        while pending:
+            collect(pending.popleft())
+
+    for counter in counters.values():
+        counter.assign()
+
+
 def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pcoa=False,
-                   metadata=None, color_by=None):
+                   metadata=None, color_by=None, replicates=None, workers=1):
     """
     Build trees and the PCoA plot from a validated square distance matrix.
 
     :param df: square distance matrix (pandas DataFrame)
     :param out_dir: folder for the result files
     :param name: prefix of the output files
+    :param replicates: optional iterable of bootstrap replicate matrices
+    :param workers: number of processes building the bootstrap replicate trees
     :return: list of output files
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     outputs = list()
 
-    with step('Building hierarchical clustering tree ({})'.format(linkage)):
-        out = out_dir / '{}_hc.nwk'.format(name)
-        trees.write_newick(trees.hc_tree(df, linkage), out)
+    built = build_trees(df, linkage, nj, me)
+    if replicates is not None:
+        with step('Bootstrapping with {} tree-building process(es)'.format(workers)):
+            add_bootstrap_support(built, replicates, linkage, nj, me, workers)
+    for kind, tree in built.items():
+        out = out_dir / '{}_{}.nwk'.format(name, kind)
+        trees.write_newick(tree, out)
         outputs.append(out)
-
-    if me:
-        with step('Building minimum evolution tree'):
-            out = out_dir / '{}_me.nwk'.format(name)
-            trees.write_newick(trees.me_tree(df), out)
-            outputs.append(out)
-
-    if nj:
-        with step('Building neighbour joining tree'):
-            out = out_dir / '{}_nj.nwk'.format(name)
-            trees.write_newick(trees.nj_tree(df), out)
-            outputs.append(out)
 
     if pcoa:
         with step('Running PCoA'):
@@ -87,7 +158,7 @@ def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pco
 class MashPhylo:
     def __init__(self, input_dir, output_dir, threads=1, kmer_size=21, sketch_size=10000, min_copies=2,
                  linkage='average', nj=False, me=False, pcoa=False, metadata=None, color_by=None,
-                 phylip=False, force=False, clean=False):
+                 phylip=False, force=False, clean=False, bootstrap=0):
         self.input_dir = Path(input_dir).expanduser().resolve()
         self.output_dir = Path(output_dir).expanduser().resolve()
         self.sketch_dir = self.output_dir / 'sketches'
@@ -100,6 +171,7 @@ class MashPhylo:
         self.phylip = phylip
         self.force = force
         self.clean = clean
+        self.bootstrap = bootstrap
 
     def run(self):
         start_time = time()
@@ -149,7 +221,15 @@ class MashPhylo:
         if self.phylip:
             matrix.write_phylip(df, self.output_dir / 'all_dist.phylip')
 
-        outputs = analyze_matrix(df, self.tree_dir, 'all_dist', **self.tree_options)
+        replicates, workers = None, 1
+        if self.bootstrap:
+            sketched = [samples[name] for name in sorted(sketches)]
+            replicates = self.bootstrap_matrices(sketched, self.bootstrap)
+            # Mash already uses all threads; the tree-building processes share the CPUs with it.
+            # Capped because each process holds a full distance matrix in memory.
+            workers = max(1, min(MAX_TREE_WORKERS, self.threads // 2, self.bootstrap))
+        outputs = analyze_matrix(df, self.tree_dir, 'all_dist', replicates=replicates, workers=workers,
+                                 **self.tree_options)
 
         if self.clean:
             self.cleanup(sketches)
@@ -180,6 +260,28 @@ class MashPhylo:
         if reused:
             log.info('Reused %d existing sketch(es). Use --force to sketch everything again.', reused)
         return sketches, stats, failed
+
+    def bootstrap_matrices(self, samples, n_replicates):
+        """
+        Yield one distance matrix per bootstrap replicate. Each replicate sketches the samples again with a
+        different hash seed, i.e. a different random subset of k-mers. Replicate sketches are temporary.
+        """
+        for i in range(1, n_replicates + 1):
+            t0 = time()
+            seed = mash.DEFAULT_SEED + i
+            with tempfile.TemporaryDirectory(dir=self.output_dir, prefix='.bootstrap_') as tmp:
+                def sketch(sample):
+                    prefix = Path(tmp, sample.name)
+                    mash.sketch(sample, prefix, self.kmer_size, self.sketch_size, self.min_copies, seed=seed)
+                    return prefix.with_name(prefix.name + '.msh')
+
+                with futures.ThreadPoolExecutor(max_workers=self.threads) as executor:
+                    sketch_files = list(executor.map(sketch, samples))
+                all_msh = Path(tmp, 'all.msh')
+                mash.paste(sketch_files, all_msh)
+                names, values, _ = mash.triangle(all_msh, self.threads)
+            log.debug('Bootstrap replicate %d/%d distances computed in %s', i, n_replicates, elapsed_time(time() - t0))
+            yield matrix.validate(pd.DataFrame(values, index=names, columns=names))
 
     @staticmethod
     def write_stats(samples, sketch_stats, failed, sketch_info, stats_file):

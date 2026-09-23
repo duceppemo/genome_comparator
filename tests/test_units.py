@@ -137,3 +137,43 @@ def test_rename_exact_match_only():
 @pytest.mark.parametrize('seconds, expected', [(0, '0s'), (59.6, '1m'), (3725, '1h2m5s')])
 def test_elapsed_time(seconds, expected):
     assert elapsed_time(seconds) == expected
+
+
+def read(nwk):
+    return TreeNode.read(io.StringIO(nwk), convert_underscores=False)
+
+
+def test_rooted_clades_differ_from_unrooted_splits():
+    from genome_comparator.bootstrap import node_splits
+    index = {n: i for i, n in enumerate('ABCD')}
+    # Same unrooted tree AB|CD, rooted differently
+    t1, t2 = read('((A,B),(C,D));'), read('(A,(B,(C,D)));')
+    assert set(node_splits(t1, index, rooted=False).values()) == set(node_splits(t2, index, rooted=False).values())
+    assert set(node_splits(t1, index, rooted=True).values()) != set(node_splits(t2, index, rooted=True).values())
+
+
+def test_support_counter():
+    from genome_comparator.bootstrap import SupportCounter
+    ref = read('(((A,B),C),(D,E));')
+    counter = SupportCounter(ref, rooted=True)
+    counter.add(read('(((A,B),C),(D,E));'))
+    counter.add(read('(((A,C),B),(D,E));'))
+    counter.assign()
+    supports = {frozenset(t.name for t in n.tips()): n.support for n in ref.non_tips()}
+    assert supports == {frozenset('AB'): 50, frozenset('ABC'): 100, frozenset('DE'): 100}
+    assert trees.to_newick(ref) == "((('A','B')50,'C')100,('D','E')100);\n"
+
+
+def test_bootstrap_support_in_parallel():
+    from genome_comparator.pipeline import add_bootstrap_support, build_trees
+    names = list('ABCDE')
+    ref = square(names, [[0, 1, 4, 8, 8], [1, 0, 4, 8, 8], [4, 4, 0, 8, 8], [8, 8, 8, 0, 2], [8, 8, 8, 2, 0]])
+    swapped = ref.copy()  # A is now closer to C than to B
+    swapped.loc['A', 'C'] = swapped.loc['C', 'A'] = 0.5
+    built = build_trees(ref, nj=True, me=True, verbose=False)
+    add_bootstrap_support(built, [ref, ref, ref, swapped], nj=True, me=True, workers=2)
+    hc = {frozenset(t.name for t in n.tips()): n.support for n in built['hc'].non_tips()}
+    assert hc[frozenset('AB')] == 75 and hc[frozenset('DE')] == 100
+    for kind in ('nj', 'me'):
+        supports = [n.support for n in built[kind].non_tips()]
+        assert supports and all(0 <= s <= 100 for s in supports)

@@ -59,7 +59,7 @@ def add_tree_arguments(parser):
     group.add_argument('--linkage', choices=trees.LINKAGE_METHODS, default='average',
                        help='Hierarchical clustering method for the "_hc" tree. "average" is UPGMA.')
     group.add_argument('--nj', action='store_true',
-                       help='Also build a neighbour joining tree. Can be slow on thousands of samples.')
+                       help='Also build a neighbour joining tree. Slower than --me on very large datasets.')
     group.add_argument('--me', action='store_true',
                        help='Also build a balanced minimum evolution tree (with NNI). '
                             'Similar to NJ but much faster on large datasets.')
@@ -121,6 +121,10 @@ def main(argv=None):
                         help='Reads only: minimum copies of a k-mer to be included in the sketch '
                              '(filters out sequencing errors)')
     add_tree_arguments(parser)
+    parser.add_argument('-b', '--bootstrap', metavar='N', type=int_range(0), default=0,
+                        help='Number of bootstrap replicates for tree support values. Each replicate sketches all '
+                             'the samples again with a different hash seed, so N replicates take about N times '
+                             'longer than a normal run.')
     parser.add_argument('--phylip', action='store_true',
                         help='Also save the distance matrix in phylip format (for rapidnj, fastme, etc.)')
     parser.add_argument('--force', action='store_true',
@@ -142,7 +146,8 @@ def main(argv=None):
 
     run_safely(MashPhylo(args.input, args.output, threads=args.threads, kmer_size=args.kmer_size,
                          sketch_size=args.sketch_size, min_copies=args.min_copies, phylip=args.phylip,
-                         force=args.force, clean=args.clean, **tree_kwargs(args)).run)
+                         force=args.force, clean=args.clean, bootstrap=args.bootstrap,
+                         **tree_kwargs(args)).run)
 
 
 def dendrogram_main(argv=None):

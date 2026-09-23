@@ -14,6 +14,7 @@ import numpy as np
 log = logging.getLogger(__name__)
 
 MAX_KMER_SIZE = 32  # Mash limit with 64-bit hashes
+DEFAULT_SEED = 42  # Mash's default hash seed
 PASTE_CHUNK_SIZE = 5000  # Avoid huge single "mash paste" calls
 
 
@@ -47,10 +48,11 @@ def check_mash():
     return version
 
 
-def sketch(sample, out_prefix, kmer_size, sketch_size, min_copies):
+def sketch(sample, out_prefix, kmer_size, sketch_size, min_copies, seed=DEFAULT_SEED):
     """
     Sketch one sample. All files of a fastq sample (e.g. R1 and R2) are combined in a single sketch.
     The sketch ID is set to the sample name so no renaming is needed downstream.
+    A different hash seed selects a different random subset of k-mers (used for bootstrapping).
 
     :return: dict of statistics reported by Mash (estimated coverage for reads)
     """
@@ -58,6 +60,7 @@ def sketch(sample, out_prefix, kmer_size, sketch_size, min_copies):
            '-k', kmer_size,
            '-s', sketch_size,
            '-p', 1,
+           '-S', seed,
            '-I', sample.name,
            '-o', out_prefix]
     if sample.is_fastq:

@@ -53,6 +53,17 @@ def test_full_pipeline(genomes, tmp_path):
     assert sorted(t.name for t in tree.tips()) == list(df.index)
 
 
+def test_bootstrap(genomes, tmp_path):
+    out = tmp_path / 'out'
+    main(['-i', str(genomes), '-o', str(out), '-t', '4', '-s', '1000', '--nj', '--me', '--bootstrap', '3'])
+    for kind in ('hc', 'nj', 'me'):
+        tree = read_newick(out / 'tree' / 'all_dist_{}.nwk'.format(kind))
+        tree.assign_supports()
+        supports = [n.support for n in tree.non_tips() if n.support is not None]
+        assert supports and all(0 <= s <= 100 for s in supports)
+    assert not list(out.glob('.bootstrap_*'))  # Replicate sketches are removed
+
+
 def test_rerun_reuses_sketches_and_updates_results(genomes, tmp_path, caplog):
     out = tmp_path / 'out'
     main(['-i', str(genomes), '-o', str(out), '-t', '2', '-s', '1000'])
