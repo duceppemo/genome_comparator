@@ -19,21 +19,24 @@ def read_matrix(path):
     """
     path = Path(path)
     ext = path.suffix.lower()
-    # dtype=str keeps sample names such as "001" or "1e3" as written instead of parsing them as numbers
+    # Everything is read as text so sample names such as "001" or "1e3" are kept as written. The first column
+    # becomes the index afterwards: older pandas versions ignore dtype for the index column.
     if ext in ('.xlsx', '.xls'):
         try:
-            df = pd.read_excel(path, index_col=0, header=0, dtype=str)
+            df = pd.read_excel(path, header=0, dtype=str)
         except ImportError:
             raise MatrixError('Reading "{}" files requires an extra package: install it with '
                               '"conda install -c conda-forge xlrd", or save the file as .xlsx or .tsv'.format(ext))
     elif ext == '.csv':
-        df = pd.read_csv(path, index_col=0, header=0, dtype=str)
+        df = pd.read_csv(path, header=0, dtype=str)
     elif ext in ('.tsv', '.txt', '.tab'):
-        df = pd.read_csv(path, index_col=0, header=0, sep='\t', dtype=str)
+        df = pd.read_csv(path, header=0, sep='\t', dtype=str)
     else:
         raise MatrixError('Invalid input file type "{}". The distance matrix must be in Excel '
                           '(".xlsx" or ".xls") or text format (".csv" or ".tsv")'.format(ext))
-    return validate(df)
+    if df.shape[1] == 0:
+        raise MatrixError('Distance matrix is empty')
+    return validate(df.set_index(df.columns[0]))
 
 
 def labels_to_str(labels):

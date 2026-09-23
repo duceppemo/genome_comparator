@@ -102,6 +102,10 @@ def test_read_matrix_keeps_numeric_looking_names(tmp_path):
     path = tmp_path / 'm.csv'
     path.write_text(',7,8,9\n7,0,0.1,0.2\n8,0.1,0,0.3\n9,0.2,0.3,0\n')
     assert list(matrix.read_matrix(path).index) == ['7', '8', '9']
+    # Excel stores numeric IDs as numbers: they must not come back as "7.0"
+    path = tmp_path / 'm.xlsx'
+    square([7, 8, 9], [[0, .1, .2], [.1, 0, .3], [.2, .3, 0]]).to_excel(path)
+    assert list(matrix.read_matrix(path).index) == ['7', '8', '9']
 
 
 def test_validate_writes_integral_names_without_decimals():
