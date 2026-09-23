@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genome_comparator"
+dynamic = ["version"]
+description = "Quickly compare and visualize distances between genomes (assemblies or reads) using Mash"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Marc-Olivier Duceppe", email = "marc-olivier.duceppe@inspection.gc.ca"}]
+requires-python = ">=3.10"
+# Mash (https://github.com/marbl/Mash) must also be installed and in the PATH.
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "scikit-bio>=0.7",
+    "plotly>=5.15",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/duceppemo/genome_comparator"
+
+[project.scripts]
+mash-phylo = "genome_comparator.cli:main"
+dendrogram-from-matrix = "genome_comparator.cli:dendrogram_main"
+tree-collapser = "genome_comparator.cli:collapse_main"
+tree-renamer = "genome_comparator.cli:rename_main"
+
+[tool.setuptools]
+packages = ["genome_comparator"]
+
+[tool.setuptools.dynamic]
+version = {attr = "genome_comparator.__version__"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

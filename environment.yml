@@ -1,0 +1,18 @@
+name: genome_comparator
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python>=3.10
+  - mash>=2.3
+  # Older bioconda mash builds link to libgsl.so.25 and fail to start with newer gsl
+  - gsl>=2.8
+  - numpy>=1.24
+  - pandas>=2.0
+  - scipy>=1.10
+  - scikit-bio>=0.7
+  - plotly>=5.15
+  - openpyxl>=3.1
+  - pytest
+  - pip
