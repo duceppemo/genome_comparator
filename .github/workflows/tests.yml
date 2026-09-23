@@ -23,10 +23,13 @@ jobs:
           create-args: python=${{ matrix.python-version }}
       - run: pip install --no-deps -e .
       - run: pytest -v --cov --cov-report=term --cov-report=xml
-      # Upload once: coverage is the same on every Python version
+      # Upload once: coverage is the same on every Python version.
+      # Dependabot pull requests cannot read the CODECOV_TOKEN secret, so they skip the upload.
       - uses: codecov/codecov-action@v7
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && github.actor != 'dependabot[bot]'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          fail_ci_if_error: true
+          # Strict on pushes, to notice a broken Codecov setup. Pull requests from forks upload without the token,
+          # and a Codecov hiccup should not make a contributor's pull request fail.
+          fail_ci_if_error: ${{ github.event_name == 'push' }}
