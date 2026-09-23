@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/python-3.10%E2%80%933.14-blue" alt="Python 3.10–3.14">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/duceppemo/genome_comparator" alt="License"></a>
   <a href="https://github.com/duceppemo/genome_comparator/wiki"><img src="https://img.shields.io/badge/docs-wiki-informational" alt="Documentation"></a>
+  <a href="https://doi.org/10.5281/zenodo.22920856"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22920856.svg" alt="DOI"></a>
 </p>
 
 Quickly compare and visualize distances between genomes, from assemblies (fasta) or reads (fastq), using
@@ -71,8 +72,15 @@ The **[wiki](https://github.com/duceppemo/genome_comparator/wiki)** covers
 [FAQ](https://github.com/duceppemo/genome_comparator/wiki/FAQ).
 
 ## Citing
-If you use genome_comparator, please cite this repository (see [`CITATION.cff`](CITATION.cff), or use
-**"Cite this repository"** on GitHub) and Mash, which computes the distances:
+If you use genome_comparator, please cite it and Mash, which computes the distances:
+
+> Duceppe M-O. genome_comparator: fast comparison and visualization of genome distances with Mash. Zenodo.
+> https://doi.org/10.5281/zenodo.22920856
+
+This DOI always points to the latest version; each release also has its own DOI, listed on
+[Zenodo](https://doi.org/10.5281/zenodo.22920856). GitHub's **"Cite this repository"** button gives the same citation
+in APA and BibTeX formats.
+
 
 > Ondov BD, Treangen TJ, Melsted P, Mallonee AB, Bergman NH, Koren S, Phillippy AM. Mash: fast genome and metagenome
 > distance estimation using MinHash. *Genome Biology* 17, 132 (2016). https://doi.org/10.1186/s13059-016-0997-x

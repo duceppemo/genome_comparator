@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+* Releases are archived on Zenodo: https://doi.org/10.5281/zenodo.22920856 (all versions). DOI badge and citation
+  added to the README and `CITATION.cff`.
+
 ## 0.4.5 (2026-09-23)
 * Fixed: `--me` and `--bootstrap` crashed with exactly 3 genomes.
 * Fixed: `tree-renamer` and `tree-collapser` wrote bootstrap support values as quoted labels (`'95'`), which tree

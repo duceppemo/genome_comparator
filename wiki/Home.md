@@ -32,6 +32,7 @@ distances are computed in a single multithreaded Mash call.
 * [Contributing](Contributing)
 
 ## Citing
-Please cite this repository ([`CITATION.cff`](https://github.com/duceppemo/genome_comparator/blob/master/CITATION.cff))
-and Mash: Ondov BD *et al.* Mash: fast genome and metagenome distance estimation using MinHash.
+Please cite genome_comparator: Duceppe M-O. genome_comparator: fast comparison and visualization of genome distances
+with Mash. Zenodo. https://doi.org/10.5281/zenodo.22920856 (all versions; each release also has its own DOI on
+Zenodo). Please also cite Mash: Ondov BD *et al.* Mash: fast genome and metagenome distance estimation using MinHash.
 *Genome Biology* 17, 132 (2016). https://doi.org/10.1186/s13059-016-0997-x
