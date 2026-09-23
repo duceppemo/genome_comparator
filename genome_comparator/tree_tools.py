@@ -1,5 +1,7 @@
 """Post-process Newick trees: collapse near-identical clades, rename tips."""
 
+from collections import Counter
+
 
 def mean_tip_distances(tree):
     """
@@ -62,11 +64,13 @@ def rename_tips(tree, rename):
     """
     Rename tips using exact name matches (no partial matches, so "S1" never touches "S10").
 
-    :return: set of names from the table that were not found in the tree
+    :return: (set of names from the table that were not found in the tree,
+              set of names shared by several tips after renaming)
     """
     found = set()
     for tip in tree.tips():
         if tip.name in rename:
             found.add(tip.name)
             tip.name = rename[tip.name]
-    return set(rename) - found
+    duplicates = {name for name, count in Counter(tip.name for tip in tree.tips()).items() if count > 1}
+    return set(rename) - found, duplicates

@@ -20,7 +20,11 @@ def read_matrix(path):
     path = Path(path)
     ext = path.suffix.lower()
     if ext in ('.xlsx', '.xls'):
-        df = pd.read_excel(path, index_col=0, header=0)
+        try:
+            df = pd.read_excel(path, index_col=0, header=0)
+        except ImportError:
+            raise MatrixError('Reading "{}" files requires an extra package: install it with '
+                              '"conda install -c conda-forge xlrd", or save the file as .xlsx or .tsv'.format(ext))
     elif ext == '.csv':
         df = pd.read_csv(path, index_col=0, header=0)
     elif ext in ('.tsv', '.txt', '.tab'):

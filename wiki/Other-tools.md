@@ -17,7 +17,8 @@ many near-identical genomes.
 ```
 tree-collapser -i tree.nwk -o collapsed.nwk -d 0.001
 ```
-A collapsed clade is replaced by a single tip named `<first tip> {<other tips>}`.
+A collapsed clade is replaced by a single tip named `<first tip> {<other tips>}`. Bootstrap support values of the
+remaining clades are kept.
 
 ## `tree-renamer`
 Rename the tips of a tree using a two-column tab-separated table: current name, new name.
@@ -25,4 +26,5 @@ Rename the tips of a tree using a two-column tab-separated table: current name, 
 tree-renamer -i tree.nwk -o renamed.nwk -r rename.tsv
 ```
 * Only exact matches are renamed: `S1` never changes `S10`.
-* Names from the table that are not found in the tree are listed in a warning.
+* Names from the table that are not found in the tree, and new names shared by several tips, are listed in warnings.
+* Bootstrap support values are kept.

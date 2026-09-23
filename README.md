@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" width="180" alt="genome_comparator logo">
+  <img src="https://raw.githubusercontent.com/duceppemo/genome_comparator/master/assets/logo.png" width="180" alt="genome_comparator logo">
 </p>
 
 <h1 align="center">genome_comparator</h1>
@@ -18,8 +18,8 @@ Quickly compare and visualize distances between genomes, from assemblies (fasta)
 evolution) with optional bootstrap support, and an interactive PCoA plot.
 
 <p align="center">
-  <img src="assets/tree.png" width="49%" alt="Neighbour joining tree of 22 Listeria genomes with bootstrap support values">
-  <img src="assets/pcoa.png" width="49%" alt="PCoA of 22 Listeria genomes coloured by species">
+  <img src="https://raw.githubusercontent.com/duceppemo/genome_comparator/master/assets/tree.png" width="49%" alt="Neighbour joining tree of 22 Listeria genomes with bootstrap support values">
+  <img src="https://raw.githubusercontent.com/duceppemo/genome_comparator/master/assets/pcoa.png" width="49%" alt="PCoA of 22 Listeria genomes coloured by species">
   <br>
   <sub>22 public <i>Listeria</i> genomes from the <a href="https://github.com/duceppemo/genome_comparator/wiki/Tutorial">tutorial</a>: 3 seconds, or under 2 minutes with 100 bootstrap replicates.</sub>
 </p>

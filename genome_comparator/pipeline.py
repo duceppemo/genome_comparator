@@ -165,7 +165,9 @@ def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pco
     return outputs
 
 
-class MashPhylo:
+class GenomeComparator:
+    """The main pipeline: sample discovery, sketching, distances, then trees and PCoA."""
+
     def __init__(self, input_dir, output_dir, threads=1, kmer_size=21, sketch_size=10000, min_copies=2,
                  linkage='average', nj=False, me=False, pcoa=False, metadata=None, color_by=None,
                  phylip=False, force=False, clean=False, bootstrap=0):

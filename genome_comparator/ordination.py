@@ -29,7 +29,8 @@ def pcoa(df, dimensions=3):
     coords = result.samples.iloc[:, :dimensions].copy()
     coords.index = list(df.index)
     coords.columns = ['PC{}'.format(i + 1) for i in range(dimensions)]
-    explained = [float(x) * 100 for x in result.proportion_explained.iloc[:dimensions]]
+    # All distances 0 (identical genomes): no variation to explain, avoid "nan%"
+    explained = [float(x) * 100 if pd.notna(x) else 0.0 for x in result.proportion_explained.iloc[:dimensions]]
     return coords, explained
 
 

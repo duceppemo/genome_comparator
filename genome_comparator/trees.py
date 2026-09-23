@@ -30,12 +30,19 @@ def nj_tree(df):
 def me_tree(df):
     """Balanced minimum evolution tree refined with nearest neighbour interchanges. Much faster than NJ."""
     dm = DistanceMatrix(df.to_numpy(), list(df.index))
-    return nni(bme(dm), dm)
+    tree = bme(dm)
+    # An unrooted tree with 3 tips has a single topology: nothing to refine (and scikit-bio's nni fails on it)
+    return nni(tree, dm) if len(df) > 3 else tree
 
 
 def read_newick(path):
-    """Read a Newick tree. Underscores in names are kept as is."""
-    return TreeNode.read(str(path), format='newick', convert_underscores=False)
+    """
+    Read a Newick tree. Underscores in names are kept as is.
+    Numeric internal node labels are read as support values, so they are written back unquoted.
+    """
+    tree = TreeNode.read(str(path), format='newick', convert_underscores=False)
+    tree.assign_supports()
+    return tree
 
 
 def quote(name):

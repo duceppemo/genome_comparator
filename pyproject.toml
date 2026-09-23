@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,8 @@ name = "genome_comparator"
 dynamic = ["version"]
 description = "Quickly compare and visualize distances between genomes (assemblies or reads) using Mash"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{name = "Marc-Olivier Duceppe", email = "marc-olivier.duceppe@inspection.gc.ca"}]
 requires-python = ">=3.10"
 # Mash (https://github.com/marbl/Mash) must also be installed and in the PATH.

@@ -9,7 +9,7 @@ from pathlib import Path
 from . import __version__, matrix, ordination, trees
 from .mash import MAX_KMER_SIZE, MashError
 from .matrix import MatrixError
-from .pipeline import MIN_SAMPLES, MashPhylo, analyze_matrix, step
+from .pipeline import MIN_SAMPLES, GenomeComparator, analyze_matrix, step
 from .samples import SampleError
 from .tree_tools import collapse, read_rename_table, rename_tips
 
@@ -144,10 +144,10 @@ def main(argv=None):
     setup_logging(args.verbose, output / 'genome_comparator.log')
     log.info('genome_comparator %s: %s', __version__, ' '.join(sys.argv))
 
-    run_safely(MashPhylo(args.input, args.output, threads=args.threads, kmer_size=args.kmer_size,
-                         sketch_size=args.sketch_size, min_copies=args.min_copies, phylip=args.phylip,
-                         force=args.force, clean=args.clean, bootstrap=args.bootstrap,
-                         **tree_kwargs(args)).run)
+    run_safely(GenomeComparator(args.input, args.output, threads=args.threads, kmer_size=args.kmer_size,
+                                sketch_size=args.sketch_size, min_copies=args.min_copies, phylip=args.phylip,
+                                force=args.force, clean=args.clean, bootstrap=args.bootstrap,
+                                **tree_kwargs(args)).run)
 
 
 def mash_phylo_main(argv=None):
@@ -224,11 +224,14 @@ def rename_main(argv=None):
 
     def run():
         tree = trees.read_newick(args.input)
-        not_found = rename_tips(tree, read_rename_table(args.rename_table))
+        not_found, duplicates = rename_tips(tree, read_rename_table(args.rename_table))
         trees.write_newick(tree, args.output)
         if not_found:
             log.warning('%d name(s) from the rename table were not found in the tree: %s',
                         len(not_found), ', '.join(sorted(not_found)[:10]))
+        if duplicates:
+            log.warning('%d name(s) are now shared by several tips: %s',
+                        len(duplicates), ', '.join(sorted(duplicates)[:10]))
 
     run_safely(run)
 

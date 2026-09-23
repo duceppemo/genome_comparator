@@ -59,7 +59,6 @@ def test_bootstrap(genomes, tmp_path):
     main(['-i', str(genomes), '-o', str(out), '-t', '4', '-s', '1000', '--nj', '--me', '--bootstrap', '3'])
     for kind in ('hc', 'nj', 'me'):
         tree = read_newick(out / 'tree' / 'all_dist_{}.nwk'.format(kind))
-        tree.assign_supports()
         supports = [n.support for n in tree.non_tips() if n.support is not None]
         assert supports and all(0 <= s <= 100 for s in supports)
     assert not list(out.glob('.bootstrap_*'))  # Replicate sketches are removed

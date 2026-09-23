@@ -6,6 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 command -v datasets >/dev/null || { echo 'Install the NCBI datasets tool: conda install -c conda-forge ncbi-datasets-cli' >&2; exit 1; }
+command -v unzip >/dev/null || { echo 'Install unzip: conda install -c conda-forge unzip' >&2; exit 1; }
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

@@ -129,9 +129,15 @@ def test_collapse():
 
 def test_rename_exact_match_only():
     tree = TreeNode.read(io.StringIO('(S1:1,S10:1,S11:1);'))
-    missing = rename_tips(tree, {'S1': 'new', 'S2': 'x'})
+    missing, duplicates = rename_tips(tree, {'S1': 'new', 'S2': 'x'})
     assert sorted(t.name for t in tree.tips()) == ['S10', 'S11', 'new']
-    assert missing == {'S2'}
+    assert missing == {'S2'} and not duplicates
+
+
+def test_rename_reports_duplicate_names():
+    tree = TreeNode.read(io.StringIO('(S1:1,S2:1,S3:1);'))
+    _, duplicates = rename_tips(tree, {'S1': 'same', 'S2': 'same'})
+    assert duplicates == {'same'}
 
 
 @pytest.mark.parametrize('seconds, expected', [(0, '0s'), (59.6, '1m'), (3725, '1h2m5s')])
@@ -280,3 +286,31 @@ def test_python_m_runs_main_command():
     import sys
     proc = subprocess.run([sys.executable, '-m', 'genome_comparator', '--version'], capture_output=True, text=True)
     assert proc.returncode == 0 and proc.stdout.startswith('genome-comparator ')
+
+
+def test_me_tree_with_three_samples():
+    df = square(list('ABC'), [[0, .01, .05], [.01, 0, .06], [.05, .06, 0]])
+    assert sorted(t.name for t in trees.me_tree(df).tips()) == ['A', 'B', 'C']
+
+
+def test_support_values_survive_read_write(tmp_path):
+    path = tmp_path / 't.nwk'
+    path.write_text("(('A':0.1,'B':0.1)95:0.2,'C':0.3,'D':0.1);\n")
+    tree = trees.read_newick(path)
+    assert trees.to_newick(tree) == "(('A':0.1,'B':0.1)95:0.2,'C':0.3,'D':0.1);\n"
+    collapse(tree, 0.5)  # Collapsed clades become tips named after their tips, not after their support
+    assert "'A {B}'" in trees.to_newick(tree)
+
+
+def test_pcoa_of_identical_genomes():
+    from genome_comparator import ordination
+    _, explained = ordination.pcoa(square(list('ABCD'), np.zeros((4, 4))))
+    assert explained == [0.0, 0.0, 0.0]
+
+
+def test_xls_without_xlrd(tmp_path, monkeypatch):
+    def missing(*args, **kwargs):
+        raise ImportError('Missing optional dependency xlrd')
+    monkeypatch.setattr(pd, 'read_excel', missing)
+    with pytest.raises(matrix.MatrixError, match='xlrd'):
+        matrix.read_matrix(tmp_path / 'm.xls')
