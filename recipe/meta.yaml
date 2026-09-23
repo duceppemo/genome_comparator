@@ -3,7 +3,7 @@
 # bioconda-recipes/recipes/genome-comparator and open a pull request. For a new release: tag it,
 # bump `version`, recompute the sha256 and reset `number` to 0.
 {% set name = "genome-comparator" %}
-{% set version = "0.4.5" %}
+{% set version = "0.4.6" %}
 
 package:
   name: {{ name }}
@@ -11,7 +11,7 @@ package:
 
 source:
   url: https://github.com/duceppemo/genome_comparator/archive/refs/tags/v{{ version }}.tar.gz
-  sha256: ec827fabd8ea56b19d37e3470f4129cc51c09da4e385dbc8f864bc54a1500b45
+  sha256: 92e32f5624343e681687f2b7ea402ada6b4d2d5f20b9230f907dd54e2bde70e2
 
 build:
   number: 0
