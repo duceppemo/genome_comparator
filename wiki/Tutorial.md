@@ -26,7 +26,7 @@ GCF_000196035.1.fna
 
 ## 2. Run genome_comparator
 ```
-mash-phylo -i genomes -o results -t 8 --nj --me --pcoa --metadata metadata.tsv --color-by species
+genome-comparator -i genomes -o results -t 8 --nj --me --pcoa --metadata metadata.tsv --color-by species
 ```
 This takes about 3 seconds on 8 threads. The log is printed and saved in `results/genome_comparator.log`.
 
@@ -79,7 +79,7 @@ NJ and ME trees are unrooted: root them on the midpoint or on an outgroup in the
 
 ## 7. Add bootstrap support
 ```
-mash-phylo -i genomes -o results -t 8 --nj --me --pcoa --metadata metadata.tsv --color-by species --bootstrap 100
+genome-comparator -i genomes -o results -t 8 --nj --me --pcoa --metadata metadata.tsv --color-by species --bootstrap 100
 ```
 The sketches from step 2 are reused, and each of the 100 replicates re-sketches the genomes with a different hash
 seed. This takes under 2 minutes on 8 threads. The support values are written in the Newick files:

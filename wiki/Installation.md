@@ -12,7 +12,7 @@ cd genome_comparator
 conda env create -f environment.yml
 conda activate genome_comparator
 pip install --no-deps .
-mash-phylo --version
+genome-comparator --version
 ```
 
 `environment.yml` only uses the `conda-forge` and `bioconda` channels. It requires `gsl>=2.8` because older
@@ -27,13 +27,18 @@ pytest
 The end-to-end tests are skipped if `mash` is not in your `PATH`.
 
 ## Without installing
-The commands can also be run directly from the cloned folder, as long as the dependencies are available:
+The commands can also be run directly from the cloned folder, as long as the dependencies are available
+(the main command with `python3 -m genome_comparator`):
 ```
-python3 mash_phylo.py -h
+python3 -m genome_comparator -h
 python3 dendrogram_from_distance_matrix.py -h
 python3 tree_collapser.py -h
 python3 tree_renamer.py -h
 ```
+
+## Updating from 0.4.3 or earlier
+The main command was renamed from `mash-phylo` to `genome-comparator` in version 0.4.4, with the same options.
+`mash-phylo` still works but prints a deprecation warning; update your scripts.
 
 ## Updating from 0.2 or earlier
 Version 0.3.0 requires Python ≥ 3.10 and scikit-bio ≥ 0.7. Recreate your environment:

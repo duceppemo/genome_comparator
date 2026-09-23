@@ -1,7 +1,7 @@
 # Bootstrap support
 
 ```
-mash-phylo -i assemblies/ -o results/ --nj --me --bootstrap 100
+genome-comparator -i assemblies/ -o results/ --nj --me --bootstrap 100
 ```
 
 ## How it works

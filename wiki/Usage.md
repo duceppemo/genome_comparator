@@ -2,7 +2,7 @@
 
 ## Quick start
 ```
-mash-phylo -i /input/folder/ -o /output/folder/ -t 48 --nj --pcoa
+genome-comparator -i /input/folder/ -o /output/folder/ -t 48 --nj --pcoa
 ```
 
 ## Input files
@@ -46,7 +46,7 @@ Trees and ordination:
                         PCoA points
   --color-by            Metadata column used to colour the PCoA points
 ```
-Run `mash-phylo -h` for the full help.
+Run `genome-comparator -h` for the full help.
 
 ## Reusing sketches
 Sketches are kept in `<output>/sketches/` and reused on the next run into the same output folder if the input
@@ -66,22 +66,22 @@ only sketches the new ones. Use `--force` to sketch everything again, or `--clea
 ## Examples
 Assemblies, all trees, PCoA coloured by serovar:
 ```
-mash-phylo -i assemblies/ -o results/ --nj --me --pcoa --metadata metadata.tsv --color-by serovar
+genome-comparator -i assemblies/ -o results/ --nj --me --pcoa --metadata metadata.tsv --color-by serovar
 ```
 
 Paired-end reads, keeping only k-mers seen at least 3 times:
 ```
-mash-phylo -i reads/ -o results/ -m 3
+genome-comparator -i reads/ -o results/ -m 3
 ```
 
 Trees with 100 bootstrap replicates:
 ```
-mash-phylo -i assemblies/ -o results/ --nj --me --bootstrap 100
+genome-comparator -i assemblies/ -o results/ --nj --me --bootstrap 100
 ```
 
 Matrix for another tree program (e.g. [rapidNJ](https://github.com/somme89/rapidNJ)):
 ```
-mash-phylo -i assemblies/ -o results/ --phylip
+genome-comparator -i assemblies/ -o results/ --phylip
 rapidnj results/all_dist.phylip -i pd > results/rapidnj.nwk
 ```
 

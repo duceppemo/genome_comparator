@@ -12,7 +12,7 @@ question, these tools may be a better fit or a good complement:
 | Strain clusters for surveillance | [PopPUNK](https://github.com/bacpop/PopPUNK) | Clusters bacterial genomes using core and accessory distances |
 | Taxonomic classification | [GTDB-Tk](https://github.com/Ecogenomics/GTDBTk) | Places genomes in the GTDB taxonomy |
 | Outbreak resolution (few SNPs) | [Snippy](https://github.com/tseemann/snippy), [vSNP](https://github.com/USDA-VS/vSNP) | SNP-level comparison against a reference |
-| Distance matrix to tree, very large datasets | [rapidNJ](https://github.com/somme89/rapidNJ), [FastME](http://www.atgc-montpellier.fr/fastme/) | Use with `mash-phylo --phylip` |
+| Distance matrix to tree, very large datasets | [rapidNJ](https://github.com/somme89/rapidNJ), [FastME](http://www.atgc-montpellier.fr/fastme/) | Use with `genome-comparator --phylip` |
 
 ## When to use genome_comparator
 * A fast first look at hundreds or thousands of genomes: structure, clusters and outliers.

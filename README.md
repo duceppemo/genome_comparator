@@ -53,7 +53,7 @@ pip install --no-deps .
 
 ## Quick start
 ```
-mash-phylo -i /input/folder/ -o /output/folder/ --nj --pcoa
+genome-comparator -i /input/folder/ -o /output/folder/ --nj --pcoa
 ```
 
 New to the tool? Follow the **[tutorial](https://github.com/duceppemo/genome_comparator/wiki/Tutorial)**: it downloads

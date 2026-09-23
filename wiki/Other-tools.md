@@ -1,7 +1,7 @@
 # Other tools
 
 ## `dendrogram-from-matrix`
-Build the same trees and PCoA plot as `mash-phylo` from any square distance matrix.
+Build the same trees and PCoA plot as `genome-comparator` from any square distance matrix.
 ```
 dendrogram-from-matrix -i matrix.tsv -o out/ [--linkage average] [--nj] [--me] [--pcoa]
                        [--metadata metadata.tsv] [--color-by COLUMN]

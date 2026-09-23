@@ -27,7 +27,8 @@ test = ["pytest>=7", "pytest-cov>=5"]
 Homepage = "https://github.com/duceppemo/genome_comparator"
 
 [project.scripts]
-mash-phylo = "genome_comparator.cli:main"
+genome-comparator = "genome_comparator.cli:main"
+mash-phylo = "genome_comparator.cli:mash_phylo_main"  # Deprecated name, kept for existing scripts
 dendrogram-from-matrix = "genome_comparator.cli:dendrogram_main"
 tree-collapser = "genome_comparator.cli:collapse_main"
 tree-renamer = "genome_comparator.cli:rename_main"

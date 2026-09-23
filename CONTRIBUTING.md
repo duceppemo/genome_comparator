@@ -5,7 +5,7 @@ Please follow the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Reporting a bug or asking a question
 [Open an issue](https://github.com/duceppemo/genome_comparator/issues/new/choose) and pick the matching template.
-For bugs, please include the version (`mash-phylo --version`), the command you ran and the log file
+For bugs, please include the version (`genome-comparator --version`), the command you ran and the log file
 (`<output>/genome_comparator.log`, ideally from a run with `-v`). Check the
 [troubleshooting page](https://github.com/duceppemo/genome_comparator/wiki/Troubleshooting) and the
 [FAQ](https://github.com/duceppemo/genome_comparator/wiki/FAQ) first.

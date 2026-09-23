@@ -102,9 +102,9 @@ def run_safely(func):
 
 
 def main(argv=None):
-    """mash-phylo: compare genomes from a folder of fasta/fastq files."""
+    """genome-comparator: compare genomes from a folder of fasta/fastq files."""
     max_cpu = available_cpus()
-    parser = ArgumentParser(prog='mash-phylo', formatter_class=ArgumentDefaultsHelpFormatter,
+    parser = ArgumentParser(prog='genome-comparator', formatter_class=ArgumentDefaultsHelpFormatter,
                             description='Compare genomes (assemblies or reads) with Mash and build '
                                         'a distance matrix, trees and an optional PCoA plot.')
     parser.add_argument('-i', '--input', metavar='/input/folder', required=True,
@@ -148,6 +148,13 @@ def main(argv=None):
                          sketch_size=args.sketch_size, min_copies=args.min_copies, phylip=args.phylip,
                          force=args.force, clean=args.clean, bootstrap=args.bootstrap,
                          **tree_kwargs(args)).run)
+
+
+def mash_phylo_main(argv=None):
+    """Deprecated name of the main command, kept so existing scripts keep working."""
+    sys.stderr.write('Warning: "mash-phylo" is deprecated and will be removed in a future version. '
+                     'Use "genome-comparator" instead (same options).\n')
+    main(argv)
 
 
 def dendrogram_main(argv=None):

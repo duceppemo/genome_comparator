@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.4 (2026-09-23)
+* The main command is now `genome-comparator`, the same name as the tool, with the same options.
+  `mash-phylo` still works but prints a deprecation warning. `python -m genome_comparator` also works.
+* Description added to `CITATION.cff` (used by Zenodo).
+
 ## 0.4.3 (2026-09-23)
 * PCoA plots use a colourblind-friendly palette (Okabe-Ito) and one marker shape per category, instead of Plotly's
   default colours. Missing metadata is shown as "Unknown"; past 42 categories, the least frequent ones are grouped

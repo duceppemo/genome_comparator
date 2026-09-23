@@ -28,7 +28,7 @@ class MashError(Exception):
 def executable():
     """
     Path of the mash executable: the one in the PATH, otherwise the one installed next to the running Python.
-    The fallback makes "/path/to/env/bin/mash-phylo" work without activating the conda environment.
+    The fallback makes "/path/to/env/bin/genome-comparator" work without activating the conda environment.
 
     :return: path to mash, or None if it cannot be found
     """

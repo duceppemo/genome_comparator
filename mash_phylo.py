@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Kept for backward compatibility. Prefer the installed `mash-phylo` command."""
+"""Deprecated, kept for backward compatibility. Use the installed `genome-comparator` command."""
 
-from genome_comparator.cli import main
+from genome_comparator.cli import mash_phylo_main
 
 if __name__ == '__main__':
-    main()
+    mash_phylo_main()

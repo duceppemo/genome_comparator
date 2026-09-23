@@ -10,8 +10,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: Output of `mash-phylo --version`
-      placeholder: mash-phylo 0.4.2
+      description: Output of `genome-comparator --version`
+      placeholder: genome-comparator 0.4.4
     validations:
       required: true
   - type: textarea

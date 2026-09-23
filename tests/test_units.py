@@ -263,3 +263,20 @@ def test_parse_info_counts_single_sequence():
     assert parse_info(text) == {'F2365': {'length': 2905187, 'num_seqs': 1},
                                 'R2-502': {'length': 3091600, 'num_seqs': 2},
                                 'reads': {'length': 191866, 'num_seqs': 8000}}
+
+
+def test_mash_phylo_is_a_deprecated_alias(capsys):
+    from genome_comparator.cli import mash_phylo_main
+    with pytest.raises(SystemExit) as e:
+        mash_phylo_main(['--version'])
+    assert e.value.code == 0
+    out = capsys.readouterr()
+    assert 'deprecated' in out.err and 'genome-comparator' in out.err
+    assert out.out.startswith('genome-comparator ')
+
+
+def test_python_m_runs_main_command():
+    import subprocess
+    import sys
+    proc = subprocess.run([sys.executable, '-m', 'genome_comparator', '--version'], capture_output=True, text=True)
+    assert proc.returncode == 0 and proc.stdout.startswith('genome-comparator ')

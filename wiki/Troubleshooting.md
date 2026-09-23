@@ -1,8 +1,8 @@
 # Troubleshooting
 
 ### `"mash" was not found`
-`mash-phylo` uses the `mash` found in your `PATH` first, then the one installed next to its own Python interpreter
-(the `bin/` folder of the conda environment). Calling `/path/to/envs/genome_comparator/bin/mash-phylo` without
+`genome-comparator` uses the `mash` found in your `PATH` first, then the one installed next to its own Python interpreter
+(the `bin/` folder of the conda environment). Calling `/path/to/envs/genome_comparator/bin/genome-comparator` without
 activating the environment therefore works if Mash is installed in that environment. The log shows which `mash`
 was used.
 
