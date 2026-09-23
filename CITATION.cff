@@ -21,6 +21,9 @@ identifiers:
     value: 10.5281/zenodo.22920856
     description: "Concept DOI: all versions, resolves to the latest"
   - type: doi
+    value: 10.5281/zenodo.22923264
+    description: "Version DOI for 0.4.6"
+  - type: doi
     value: 10.5281/zenodo.22920857
     description: "Version DOI for 0.4.5"
 license: MIT
