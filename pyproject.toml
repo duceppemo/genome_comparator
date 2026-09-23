@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+test = ["pytest>=7", "pytest-cov>=5"]
 
 [project.urls]
 Homepage = "https://github.com/duceppemo/genome_comparator"
@@ -40,3 +40,10 @@ version = {attr = "genome_comparator.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["genome_comparator"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true

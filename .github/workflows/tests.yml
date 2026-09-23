@@ -22,4 +22,11 @@ jobs:
           environment-file: environment.yml
           create-args: python=${{ matrix.python-version }}
       - run: pip install --no-deps -e .
-      - run: pytest -v
+      - run: pytest -v --cov --cov-report=term --cov-report=xml
+      # Upload once: coverage is the same on every Python version
+      - uses: codecov/codecov-action@v7
+        if: matrix.python-version == '3.12'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: true
