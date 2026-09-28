@@ -1,5 +1,6 @@
 """Principal coordinates analysis (PCoA) of a distance matrix with an interactive plot."""
 
+import re
 import warnings
 
 import pandas as pd
@@ -56,23 +57,39 @@ NEUTRAL = '#8C8C8C'  # "Unknown" (sample missing from the metadata) and "Other" 
 SINGLE_COLOUR = '#0072B2'  # All points when there is no --color-by
 
 
+NUMBER = re.compile(r'[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?')
+
+
+def category_order(label):
+    """
+    Human sort key for category labels: numbers by value ("2" before "10", "0.5" after "0.25"), then other labels,
+    ignoring case and comparing the numbers they contain by value ("st1" before "ST2" before "ST10").
+    The label itself breaks ties ("01" and "1", "a" and "A").
+    """
+    if NUMBER.fullmatch(label):
+        return 0, float(label), label
+    parts = re.split(r'(\d+)', label.casefold())
+    return 1, [int(p) if i % 2 else p for i, p in enumerate(parts)], label
+
+
 def category_styles(values):
     """
     Assign a unique (colour, symbol) pair to each category. Colours and symbols cycle at different lengths (6 and 7),
-    giving 42 unique pairs. Categories are sorted by name so a category keeps its style between runs.
+    giving 42 unique pairs. Categories are sorted by name, numbers by value (see category_order), so a category keeps
+    its style between runs.
     When there are more categories, the least frequent ones are grouped into "Other".
 
     :param values: pandas Series of category labels (missing values = sample absent from the metadata)
     :return: (Series of category labels to plot, dict {label: (colour, symbol)}, list of labels in legend order)
     """
     values = values.fillna('Unknown').astype(str)
-    categories = sorted(set(values) - {'Unknown'})
+    categories = sorted(set(values) - {'Unknown'}, key=category_order)
     max_styles = len(PALETTE) * len(SYMBOLS)
     extras = list()  # Neutral-styled groups, shown last in the legend
     if len(categories) > max_styles:
         keep = set(values[values != 'Unknown'].value_counts().index[:max_styles - 1])
         values = values.where(values.isin(keep) | (values == 'Unknown'), 'Other')
-        categories = sorted(keep - {'Other'})
+        categories = sorted(keep - {'Other'}, key=category_order)
         extras.append('Other')
     if (values == 'Unknown').any():
         extras.append('Unknown')

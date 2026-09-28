@@ -51,6 +51,12 @@ def test_int_range_rejects(check, value, message):
         check(value)
 
 
+@pytest.mark.parametrize('value, message', [('x', 'not a number'), ('-0.1', '>= 0'), ('nan', '>= 0')])
+def test_distance_rejects(value, message):
+    with pytest.raises(ArgumentTypeError, match=message):
+        cli.distance(value)
+
+
 def test_int_range_accepts():
     assert cli.int_range(1, 32)('32') == 32
 
@@ -192,3 +198,15 @@ def test_read_rename_table_keeps_spaces(tmp_path):
     table = tmp_path / 'rename.tsv'
     table.write_text('A\tnew name \n')
     assert read_rename_table(table) == {'A': 'new name '}
+
+
+def test_dendrogram_clusters(matrix_file, tmp_path, caplog):
+    out = tmp_path / 'out'
+    dendrogram_main(['-i', str(matrix_file), '-o', str(out), '--clusters', '0.03', '0.01', '5'])
+    table = (out / 'matrix_clusters.tsv').read_text().splitlines()
+    assert table == ['sample\tcluster_0.01\tcluster_0.03\tcluster_5',
+                     'A\t1\t1\t1',
+                     'B\t1\t1\t1',
+                     'C\t2\t2\t1',
+                     'D\t3\t2\t1']
+    assert 'Clusters at distance 0.03: 2 cluster(s), 2 with several samples (largest: 2 sample(s))' in caplog.text

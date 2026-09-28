@@ -45,6 +45,8 @@ Trees and ordination:
   --metadata            Tab-separated file (first column = sample name) shown when hovering over
                         PCoA points
   --color-by            Metadata column used to colour the PCoA points
+  --clusters DISTANCE   Also group the samples into clusters at one or more distance thresholds
+                        (single linkage) and save a table with one column per threshold
 ```
 Run `genome-comparator -h` for the full help.
 
@@ -77,6 +79,11 @@ genome-comparator -i reads/ -o results/ -m 3
 Trees with 100 bootstrap replicates:
 ```
 genome-comparator -i assemblies/ -o results/ --nj --me --bootstrap 100
+```
+
+Species-level (~95% ANI) and strain-level clusters, see [Clusters](Output-files#clusters):
+```
+genome-comparator -i assemblies/ -o results/ --clusters 0.001 0.05
 ```
 
 Matrix for another tree program (e.g. [rapidNJ](https://github.com/somme89/rapidNJ)):

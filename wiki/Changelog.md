@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased
+* New: `--clusters DISTANCE [DISTANCE ...]` groups the samples into single linkage clusters at one or more distance
+  thresholds and saves them in `all_dist_clusters.tsv`, one column per threshold. Also available in
+  `dendrogram-from-matrix`, for any kind of distance. See [Clusters](Output-files#clusters).
+* PCoA legend: categories are sorted in "human" order, ignoring case and with numbers sorted by value (`1, 2, 10`,
+  `st1, ST2, ST10`) instead of alphabetically (`1, 10, 2`). Some categories may get different colours and shapes than
+  with earlier versions.
 * Removed: the scripts at the root of the repository (`mash_phylo.py`, `dendrogram_from_distance_matrix.py`,
   `tree_collapser.py`, `tree_renamer.py`). Use the installed commands instead (`genome-comparator`,
   `dendrogram-from-matrix`, `tree-collapser`, `tree-renamer`), with the same options; see

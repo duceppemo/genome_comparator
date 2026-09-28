@@ -41,5 +41,9 @@ Yes: `dendrogram-from-matrix` builds the same trees and PCoA from any square dis
 Yes: `--pcoa --metadata metadata.tsv --color-by COLUMN`. The first column of the metadata file must hold the sample
 names. Each group gets its own colourblind-friendly colour and marker shape.
 
+### How do I split my genomes into groups (species, lineages)?
+Use `--clusters` with one or more distance thresholds, e.g. `--clusters 0.05` for species (~95% ANI). Genomes linked
+by distances at or below the threshold share a cluster. See [Clusters](Output-files#clusters).
+
 ### Can I use it on something other than bacteria?
 Mash works with any genomes, but genome_comparator has mostly been used and tested on bacterial genomes.

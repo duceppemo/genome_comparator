@@ -91,7 +91,30 @@ identical, and the branching order between them gets low support (31–81%): the
 are not always in the sketch. That is the resolution limit of Mash; see
 [Bootstrap support](Bootstrap-support#interpreting-support-values).
 
-## 8. Simplify a large tree
+## 8. Group the genomes into clusters
+Clusters are computed from the distance matrix, so there is no need to sketch the genomes again:
+```
+dendrogram-from-matrix -i results/all_dist.tsv -o clusters --clusters 0.001 0.01 0.05
+```
+```
+Clusters at distance 0.001: 17 cluster(s), 2 with several samples (largest: 4 sample(s))
+Clusters at distance 0.01: 10 cluster(s), 5 with several samples (largest: 4 sample(s))
+Clusters at distance 0.05: 5 cluster(s), 5 with several samples (largest: 6 sample(s))
+```
+`clusters/all_dist_clusters.tsv` gives the cluster of each genome at each threshold. Here they are next to the NJ
+tree from step 6 (numbers and colours are those of each column; ○ is a genome alone in its cluster):
+
+![Neighbour joining tree with the clusters of each genome at distances 0.05, 0.01 and 0.001](https://raw.githubusercontent.com/duceppemo/genome_comparator/master/assets/clusters.png)
+
+* At **0.05** (~95% ANI), the 5 clusters are exactly the 5 species.
+* At **0.01**, *L. monocytogenes* splits into its two main lineages (F2365, R2-502 and J2-064; EGD-e, C1-387 and
+  J2-031).
+* At **0.001**, only the near-identical strains stay together: 4 *L. ivanovii* and 3 *L. welshimeri*, the same
+  strains whose branching order gets low bootstrap support in step 7.
+
+See [Clusters](Output-files#clusters) for how clusters are defined and numbered.
+
+## 9. Simplify a large tree
 `tree-collapser` merges clades of near-identical genomes into a single tip, which helps with trees of thousands of
 genomes:
 ```

@@ -278,6 +278,25 @@ def test_category_styles_are_unique_and_stable():
     assert styles2['a'] == styles['a']
 
 
+@pytest.mark.parametrize('labels, expected', [
+    (['10', '2', '1'], ['1', '2', '10']),
+    (['0.5', '0.25', '-1', '1e-3'], ['-1', '1e-3', '0.25', '0.5']),
+    (['ST10', 'ST2', 'st1', 'ST2a'], ['st1', 'ST2', 'ST2a', 'ST10']),
+    (['b', 'B', 'a', 'Clade 10', 'clade 9'], ['a', 'B', 'b', 'clade 9', 'Clade 10']),
+    (['b', '10', 'a', '9', 'nan'], ['9', '10', 'a', 'b', 'nan']),  # Numbers first; "nan" is text
+    (['01', '1'], ['01', '1']),
+])
+def test_category_order(labels, expected):
+    from genome_comparator.ordination import category_order
+    assert sorted(labels, key=category_order) == expected
+
+
+def test_cluster_numbers_in_numerical_order():
+    from genome_comparator.ordination import category_styles
+    _, _, order = category_styles(pd.Series([str(i) for i in range(12, 0, -1)] + [None]))
+    assert order == [str(i) for i in range(1, 13)] + ['Unknown']
+
+
 def test_category_styles_fold_extra_categories_into_other():
     from genome_comparator.ordination import PALETTE, SYMBOLS, category_styles
     n = len(PALETTE) * len(SYMBOLS) + 5
@@ -425,3 +444,25 @@ def test_read_matrix_csv(tmp_path):
     path = tmp_path / 'm.csv'
     path.write_text(',B,A\nB,0,0.1\nA,0.1,0\n')
     assert list(matrix.read_matrix(path).index) == ['A', 'B']
+
+
+def test_single_linkage_clusters():
+    from genome_comparator.clusters import cluster_table, single_linkage_clusters
+    names = ['E', 'A', 'B', 'C', 'D']
+    df = square(names, [[0, .9, .9, .9, .9],
+                        [.9, 0, .01, .02, .9],   # A-B and B-C are close enough, A-C is not: chained
+                        [.9, .01, 0, .01, .9],
+                        [.9, .02, .01, 0, .9],
+                        [.9, .9, .9, .9, 0]])
+    assert single_linkage_clusters(df, 0.01).to_dict() == {'A': 1, 'B': 1, 'C': 1, 'D': 2, 'E': 3}
+    table = cluster_table(df, [0.5, 0, 0.5])
+    assert list(table.columns) == ['cluster_0', 'cluster_0.5']
+    assert table['cluster_0'].to_dict() == {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5}  # Singletons sorted by name
+
+
+def test_cluster_numbers_do_not_depend_on_sample_order():
+    from genome_comparator.clusters import single_linkage_clusters
+    df = square(list('ABCD'), [[0, .5, .5, .5], [.5, 0, .5, .01], [.5, .5, 0, .5], [.5, .01, .5, 0]])
+    shuffled = df.loc[list('DCAB'), list('DCAB')]
+    assert single_linkage_clusters(df, 0.1).to_dict() == single_linkage_clusters(shuffled, 0.1).to_dict() == \
+        {'B': 1, 'D': 1, 'A': 2, 'C': 3}

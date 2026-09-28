@@ -48,6 +48,16 @@ def int_range(low, high=None):
     return check
 
 
+def distance(value):
+    try:
+        value = float(value)
+    except ValueError:
+        raise ArgumentTypeError('"{}" is not a number'.format(value))
+    if not value >= 0:  # Also rejects nan. No upper bound: matrices from other tools may hold e.g. SNP counts
+        raise ArgumentTypeError('must be >= 0')
+    return value
+
+
 def available_cpus():
     try:
         return len(os.sched_getaffinity(0))  # Respects cgroup/taskset limits on Linux (e.g. SLURM jobs)
@@ -71,6 +81,10 @@ def add_tree_arguments(parser):
                             'Extra columns are shown when hovering over PCoA points.')
     group.add_argument('--color-by', metavar='COLUMN',
                        help='Metadata column used to colour the PCoA points.')
+    group.add_argument('--clusters', metavar='DISTANCE', type=distance, nargs='+',
+                       help='Also group the samples into clusters at one or more distance thresholds (single '
+                            'linkage: samples linked by a chain of distances <= DISTANCE share a cluster) and save '
+                            'a table with one column per threshold. E.g. 0.05 for ~95%% ANI.')
 
 
 def check_tree_arguments(parser, args):
@@ -87,7 +101,7 @@ def check_tree_arguments(parser, args):
 
 def tree_kwargs(args):
     return dict(linkage=args.linkage, nj=args.nj, me=args.me, pcoa=args.pcoa,
-                metadata=args.metadata, color_by=args.color_by)
+                metadata=args.metadata, color_by=args.color_by, clusters=args.clusters)
 
 
 def run_safely(func):

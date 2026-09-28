@@ -12,7 +12,7 @@ from time import time
 
 import pandas as pd
 
-from . import mash, matrix, ordination, trees
+from . import clusters as clustering, mash, matrix, ordination, trees
 from .bootstrap import ROOTED_TREES, SupportCounter, node_splits
 from .samples import SampleError, find_samples
 
@@ -137,13 +137,14 @@ def add_bootstrap_support(built, replicates, linkage='average', nj=False, me=Fal
 
 
 def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pcoa=False,
-                   metadata=None, color_by=None, replicates=None, workers=1):
+                   metadata=None, color_by=None, clusters=None, replicates=None, workers=1):
     """
-    Build trees and the PCoA plot from a validated square distance matrix.
+    Build trees, the PCoA plot and the cluster table from a validated square distance matrix.
 
     :param df: square distance matrix (pandas DataFrame)
     :param out_dir: folder for the result files
     :param name: prefix of the output files
+    :param clusters: optional list of distance thresholds for the single linkage clusters
     :param replicates: optional iterable of bootstrap replicate matrices
     :param workers: number of processes building the bootstrap replicate trees
     :return: list of output files
@@ -176,6 +177,14 @@ def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pco
             ordination.plot_pcoa(coords, explained, html_file, meta, color_by, title='PCoA of {}'.format(name))
             outputs += [coords_file, html_file]
 
+    if clusters:
+        table = clustering.cluster_table(df, clusters)
+        for column in table:
+            log.info('Clusters at distance %s: %s', column.split('_', 1)[1], clustering.summary(table[column]))
+        clusters_file = out_dir / '{}_clusters.tsv'.format(name)
+        table.to_csv(clusters_file, sep='\t', index_label='sample')
+        outputs.append(clusters_file)
+
     return outputs
 
 
@@ -183,7 +192,7 @@ class GenomeComparator:
     """The main pipeline: sample discovery, sketching, distances, then trees and PCoA."""
 
     def __init__(self, input_dir, output_dir, threads=1, kmer_size=21, sketch_size=10000, min_copies=2,
-                 linkage='average', nj=False, me=False, pcoa=False, metadata=None, color_by=None,
+                 linkage='average', nj=False, me=False, pcoa=False, metadata=None, color_by=None, clusters=None,
                  phylip=False, force=False, clean=False, bootstrap=0):
         self.input_dir = Path(input_dir).expanduser().resolve()
         self.output_dir = Path(output_dir).expanduser().resolve()
@@ -193,7 +202,8 @@ class GenomeComparator:
         self.kmer_size = kmer_size
         self.sketch_size = sketch_size
         self.min_copies = min_copies
-        self.tree_options = dict(linkage=linkage, nj=nj, me=me, pcoa=pcoa, metadata=metadata, color_by=color_by)
+        self.tree_options = dict(linkage=linkage, nj=nj, me=me, pcoa=pcoa, metadata=metadata, color_by=color_by,
+                                 clusters=clusters)
         self.phylip = phylip
         self.force = force
         self.clean = clean

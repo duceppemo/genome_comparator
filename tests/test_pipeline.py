@@ -37,7 +37,8 @@ def genomes(tmp_path_factory):
 
 def test_full_pipeline(genomes, tmp_path):
     out = tmp_path / 'out'
-    main(['-i', str(genomes), '-o', str(out), '-t', '2', '-s', '1000', '--nj', '--me', '--pcoa', '--phylip'])
+    main(['-i', str(genomes), '-o', str(out), '-t', '2', '-s', '1000', '--nj', '--me', '--pcoa', '--phylip',
+          '--clusters', '0.02'])
 
     df = pd.read_csv(out / 'all_dist.tsv', sep='\t', index_col=0)
     assert list(df.index) == list(df.columns) == ['A', 'B', 'C', 'Iso_R10', 'R']
@@ -50,6 +51,9 @@ def test_full_pipeline(genomes, tmp_path):
 
     for suffix in ('hc.nwk', 'nj.nwk', 'me.nwk', 'PCoA.html', 'PCoA.tsv'):
         assert (out / 'tree' / 'all_dist_{}'.format(suffix)).exists()
+    clusters = pd.read_csv(out / 'tree' / 'all_dist_clusters.tsv', sep='\t', index_col=0)['cluster_0.02']
+    assert list(clusters.index) == list(df.index)
+    assert (clusters['A'] == clusters['B']) == (df.loc['A', 'B'] <= 0.02)
     tree = read_newick(out / 'tree' / 'all_dist_hc.nwk')
     assert sorted(t.name for t in tree.tips()) == list(df.index)
 

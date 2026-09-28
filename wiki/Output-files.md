@@ -12,6 +12,7 @@
 | `tree/all_dist_me.nwk` | Balanced minimum evolution tree (`--me`). |
 | `tree/all_dist_PCoA.html` | Interactive PCoA plot (`--pcoa`). Self-contained, works offline. |
 | `tree/all_dist_PCoA.tsv` | PCoA coordinates of each sample on the first 3 axes (`--pcoa`). |
+| `tree/all_dist_clusters.tsv` | Cluster of each sample at each distance threshold (`--clusters`). |
 | `genome_comparator.log` | Log of the run. |
 
 ## `sample_stats.tsv`
@@ -46,7 +47,38 @@ With `--color-by`, each category gets its own colour **and** marker shape, so gr
 relying on colour alone:
 * Colours come from the colourblind-friendly [Okabe-Ito](https://jfly.uni-koeln.de/color/) palette, in a fixed order.
   They were checked for all common colour vision deficiencies with every pair of colours side by side.
-* Categories are assigned in alphabetical order, so a category keeps its colour and shape between runs.
+* Categories are assigned in "human" order, so a category keeps its colour and shape between runs: case is ignored
+  and numbers are sorted by value (`1, 2, 10` and `st1, ST2, ST10` rather than `1, 10, 2` and `ST10, ST2, st1`).
 * 6 colours × 7 shapes give 42 unique combinations. If there are more categories, the least frequent ones are grouped
   into "Other" (grey).
 * Samples missing from the metadata file are shown as "Unknown" (grey open circles).
+
+## Clusters
+With `--clusters`, samples are grouped at one or more distance thresholds:
+```
+genome-comparator -i assemblies/ -o results/ --clusters 0.001 0.01 0.05
+```
+```
+sample	cluster_0.001	cluster_0.01	cluster_0.05
+S1	1	1	1
+S2	1	1	1
+S3	2	1	1
+S4	3	2	1
+```
+* **Single linkage**: two samples share a cluster if they are linked by a chain of samples, each at a distance of at
+  most the threshold from the next. Two samples of the same cluster can therefore be further apart than the threshold.
+  Unlike cutting a tree, the result does not depend on the tree method or on the order of the samples.
+* Clusters are numbered from 1 by decreasing size (ties: alphabetical order of their first sample), so the numbers
+  are stable between runs on the same genomes. They can change when genomes are added.
+* A sample with no other sample within the threshold is a cluster on its own.
+* The log gives the number of clusters at each threshold and the size of the largest one.
+* Thresholds are Mash distances, roughly 1 − ANI: 0.05 ≈ 95% ANI, the usual species boundary (see
+  [How it works](How-it-works#interpreting-mash-distances)). Very small thresholds are limited by the resolution of
+  Mash: isolates a few SNPs apart may have a distance of 0 (see
+  [Resolution](How-it-works#resolution-what-mash-cannot-see)).
+
+The table can be used as a metadata file to colour the PCoA by cluster, without sketching again:
+```
+dendrogram-from-matrix -i results/all_dist.tsv -o results/by_cluster --pcoa \
+    --metadata results/tree/all_dist_clusters.tsv --color-by cluster_0.05
+```

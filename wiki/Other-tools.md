@@ -4,11 +4,13 @@
 Build the same trees and PCoA plot as `genome-comparator` from any square distance matrix.
 ```
 dendrogram-from-matrix -i matrix.tsv -o out/ [--linkage average] [--nj] [--me] [--pcoa]
-                       [--metadata metadata.tsv] [--color-by COLUMN]
+                       [--metadata metadata.tsv] [--color-by COLUMN] [--clusters DISTANCE ...]
 ```
 * Input: `.tsv`, `.csv`, `.xlsx` or `.xls`. The first row and first column hold the sample names.
 * The matrix must be square, symmetric, complete and non-negative. Rows and columns may be in any order.
 * Output files are named after the input file, e.g. `matrix_hc.nwk`, `matrix_PCoA.html`.
+* `--clusters` works with any distance, e.g. SNP counts from a SNP pipeline (`--clusters 5 10`): see
+  [Clusters](Output-files#clusters).
 * Bootstrap support is not available here, because it needs the genomes.
 
 ## `tree-collapser`
