@@ -1,8 +1,10 @@
 # FAQ
 
 ### How do I add new genomes to an existing analysis?
-Put the new files in the input folder and run the same command with the same output folder. Existing sketches are
-reused, so only the new genomes are sketched. Distances and trees are recomputed for all genomes.
+Put the new files in the input folder and run the same command with the same output folder. Only the new genomes are
+sketched, and only their distances to the other genomes are measured: the others are read back from the previous
+`all_dist.tsv`. Trees, PCoA and clusters are then rebuilt for all genomes. See
+[Reusing sketches and distances](Usage#reusing-sketches-and-distances).
 
 ### Can I mix assemblies and reads?
 Yes, as long as each sample is either assemblies or reads. Read sketches can include sequencing errors: use
@@ -38,12 +40,17 @@ Yes: `dendrogram-from-matrix` builds the same trees and PCoA from any square dis
 (see [Other tools](Other-tools)).
 
 ### Can I colour the PCoA by my own groups?
-Yes: `--pcoa --metadata metadata.tsv --color-by COLUMN`. The first column of the metadata file must hold the sample
+Yes: `--pcoa --metadata metadata.tsv --color-by COLUMN`. To colour by cluster, use a cluster column, e.g.
+`--pcoa --clusters 0.05 --color-by cluster_0.05` (no metadata file needed). The first column of the metadata file must hold the sample
 names. Each group gets its own colourblind-friendly colour and marker shape.
 
 ### How do I split my genomes into groups (species, lineages)?
 Use `--clusters` with one or more distance thresholds, e.g. `--clusters 0.05` for species (~95% ANI). Genomes linked
 by distances at or below the threshold share a cluster. See [Clusters](Output-files#clusters).
+
+### How do I show my metadata on the trees?
+Add `--itol`: one annotation file per metadata and cluster column is saved next to the trees. Open a tree in
+[iTOL](https://itol.embl.de/) and drag and drop the files on it. See [iTOL annotations](Output-files#itol-annotations).
 
 ### Can I use it on something other than bacteria?
 Mash works with any genomes, but genome_comparator has mostly been used and tested on bacterial genomes.

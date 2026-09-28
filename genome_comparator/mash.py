@@ -223,6 +223,49 @@ def triangle(msh, threads=1):
     return names, matrix, float(pvalue.group(1)) if pvalue else None
 
 
+def dist(ref_msh, query_msh, threads=1):
+    """
+    Distances between every sketch of ref_msh and every sketch of query_msh ("mash dist", streamed line by line).
+
+    :return: (reference names, query names, numpy distance matrix [reference x query], max p-value)
+    """
+    with tempfile.TemporaryFile('w+') as err:
+        cmd = command(['mash', 'dist', '-p', threads, ref_msh, query_msh])
+        log.debug('Running: %s', shlex.join(cmd))
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err, text=True) as proc:
+            refs, queries, distances, max_pvalue = parse_dist(proc.stdout)
+        err.seek(0)
+        stderr = err.read()
+    if proc.returncode != 0:
+        raise MashError('mash dist failed (exit code {}):\n{}'.format(proc.returncode, stderr.strip()))
+    values = np.full((len(refs), len(queries)), np.nan)
+    for (r, q), d in distances.items():
+        values[refs[r], queries[q]] = d
+    if np.isnan(values).any():
+        raise MashError('Incomplete "mash dist" output')
+    return list(refs), list(queries), values, max_pvalue
+
+
+def parse_dist(lines):
+    """
+    Parse "mash dist" output: one line per pair, "reference<tab>query<tab>distance<tab>p-value<tab>shared hashes".
+
+    :return: ({reference: index}, {query: index}, {(reference, query): distance}, max p-value or None)
+    """
+    refs, queries, distances = dict(), dict(), dict()
+    max_pvalue = None
+    for n, line in enumerate(lines, 1):
+        fields = line.rstrip('\n').split('\t')
+        if len(fields) != 5:
+            raise MashError('Malformed "mash dist" output at line {}'.format(n))
+        ref, query, distance, pvalue = fields[0], fields[1], float(fields[2]), float(fields[3])
+        refs.setdefault(ref, len(refs))
+        queries.setdefault(query, len(queries))
+        distances[ref, query] = distance
+        max_pvalue = pvalue if max_pvalue is None else max(max_pvalue, pvalue)
+    return refs, queries, distances, max_pvalue
+
+
 def parse_triangle(lines):
     """
     Parse "mash triangle" output (streamed line by line to keep memory low on big datasets):

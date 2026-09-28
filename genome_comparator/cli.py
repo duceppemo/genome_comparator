@@ -7,7 +7,7 @@ import sys
 from argparse import ArgumentParser, ArgumentTypeError, ArgumentDefaultsHelpFormatter
 from pathlib import Path
 
-from . import __version__, matrix, ordination, trees
+from . import __version__, clusters as clustering, matrix, ordination, trees
 from .mash import MAX_KMER_SIZE, MashError
 from .matrix import MatrixError
 from .pipeline import MIN_SAMPLES, GenomeComparator, analyze_matrix, step
@@ -78,30 +78,40 @@ def add_tree_arguments(parser):
                        help='Also run a principal coordinates analysis (PCoA) and save an interactive html plot.')
     group.add_argument('--metadata', metavar='metadata.tsv',
                        help='Tab-separated file, first column is the sample name. '
-                            'Extra columns are shown when hovering over PCoA points.')
+                            'Extra columns are shown when hovering over PCoA points and saved as iTOL files.')
     group.add_argument('--color-by', metavar='COLUMN',
-                       help='Metadata column used to colour the PCoA points.')
+                       help='Metadata or cluster column (e.g. cluster_0.05) used to colour the PCoA points.')
     group.add_argument('--clusters', metavar='DISTANCE', type=distance, nargs='+',
                        help='Also group the samples into clusters at one or more distance thresholds (single '
                             'linkage: samples linked by a chain of distances <= DISTANCE share a cluster) and save '
                             'a table with one column per threshold. E.g. 0.05 for ~95%% ANI.')
+    group.add_argument('--itol', action='store_true',
+                       help='Also save one iTOL annotation file (colour strip) per metadata and cluster column, to '
+                            'drag and drop on the trees at https://itol.embl.de')
 
 
 def check_tree_arguments(parser, args):
-    if args.color_by and not args.metadata:
-        parser.error('--color-by requires --metadata')
-    if args.metadata and not args.pcoa:
-        parser.error('--metadata is only used with --pcoa')
+    if args.color_by and not args.pcoa:
+        parser.error('--color-by is only used with --pcoa')
+    if args.metadata and not (args.pcoa or args.itol):
+        parser.error('--metadata is only used with --pcoa or --itol')
+    if args.itol and not (args.metadata or args.clusters):
+        parser.error('--itol requires --metadata or --clusters')
+    # Fail now rather than after hours of work
+    columns = [clustering.column_name(t) for t in args.clusters or []]
     if args.metadata:
         try:
-            ordination.read_metadata(args.metadata, args.color_by)  # Fail now rather than after hours of work
+            columns += list(ordination.read_metadata(args.metadata).columns)
         except (ValueError, OSError) as e:
             parser.error(str(e))
+    if args.color_by and args.color_by not in columns:
+        parser.error('--color-by: column "{}" not found. Available columns: {}'.format(
+            args.color_by, ', '.join(columns) if columns else 'none (use --metadata or --clusters)'))
 
 
 def tree_kwargs(args):
     return dict(linkage=args.linkage, nj=args.nj, me=args.me, pcoa=args.pcoa,
-                metadata=args.metadata, color_by=args.color_by, clusters=args.clusters)
+                metadata=args.metadata, color_by=args.color_by, clusters=args.clusters, itol=args.itol)
 
 
 def run_safely(func):

@@ -154,3 +154,48 @@ def test_too_few_samples_sketched(tmp_path, caplog):
         main(['-i', str(tmp_path), '-o', str(tmp_path / 'out')])
     assert e.value.code == 1
     assert 'Only 1 sample(s) could be sketched' in caplog.text
+
+
+def run_quietly(folder, out, *extra):
+    main(['-i', str(folder), '-o', str(out), '-t', '2', '-s', '1000', *extra])
+    return (out / 'all_dist.tsv').read_text()
+
+
+def test_added_samples_reuse_previous_distances(genomes, tmp_path, caplog):
+    folder = tmp_path / 'in'
+    shutil.copytree(genomes, folder)
+    added = tmp_path / 'C.fasta'
+    shutil.move(folder / 'C.fasta', added)
+    out = tmp_path / 'out'
+    run_quietly(folder, out)
+
+    shutil.move(added, folder / 'C.fasta')
+    caplog.clear()
+    incremental = run_quietly(folder, out, '--nj')
+    assert 'Reused the distances between 4 samples from the previous run; measuring those of 1 new' in caplog.text
+    assert 'Largest Mash p-value' in caplog.text
+    # Same matrix as measuring everything from scratch
+    assert incremental == run_quietly(folder, tmp_path / 'fresh')
+
+    caplog.clear()
+    assert run_quietly(folder, out) == incremental
+    assert 'Reused all the distances from the previous run' in caplog.text
+
+
+@pytest.mark.parametrize('change', ['remove sample', 'edit matrix', 'force'])
+def test_previous_distances_not_reused(genomes, tmp_path, caplog, change):
+    folder = tmp_path / 'in'
+    shutil.copytree(genomes, folder)
+    out = tmp_path / 'out'
+    run_quietly(folder, out)
+    extra = []
+    if change == 'remove sample':
+        (folder / 'C.fasta').unlink()
+    elif change == 'edit matrix':
+        (out / 'all_dist.tsv').write_text((out / 'all_dist.tsv').read_text().replace('\t0\t', '\t0.5\t', 1))
+    else:
+        extra = ['--force']
+    caplog.clear()
+    result = run_quietly(folder, out, *extra)
+    assert 'Reused the distances' not in caplog.text and 'Reused all the distances' not in caplog.text
+    assert result == run_quietly(folder, tmp_path / 'fresh')

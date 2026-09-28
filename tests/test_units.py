@@ -466,3 +466,37 @@ def test_cluster_numbers_do_not_depend_on_sample_order():
     shuffled = df.loc[list('DCAB'), list('DCAB')]
     assert single_linkage_clusters(df, 0.1).to_dict() == single_linkage_clusters(shuffled, 0.1).to_dict() == \
         {'B': 1, 'D': 1, 'A': 2, 'C': 3}
+
+
+def test_itol_strip_labels_when_colours_repeat():
+    from genome_comparator.itol import colour_strip
+    text = colour_strip(pd.Series(list('abcdefgh'), index=list('ABCDEFGH')), 'group')
+    assert 'SHOW_STRIP_LABELS\t1' in text.splitlines()
+
+
+def test_parse_dist():
+    from genome_comparator.mash import parse_dist
+    refs, queries, distances, pvalue = parse_dist(['A\tC\t0.1\t1e-10\t500/1000\n', 'C\tC\t0\t0\t1000/1000\n'])
+    assert refs == {'A': 0, 'C': 1} and queries == {'C': 0}
+    assert distances == {('A', 'C'): 0.1, ('C', 'C'): 0.0} and pvalue == 1e-10
+    assert parse_dist([])[3] is None
+    with pytest.raises(MashError, match='line 1'):
+        parse_dist(['A\tC\t0.1\n'])
+
+
+def test_mash_dist(fake_mash, tmp_path):
+    from genome_comparator import mash
+    fake_mash.write_text('#!/bin/sh\nprintf "A\\tC\\t0.1\\t0.02\\t5/10\\nC\\tC\\t0\\t0\\t10/10\\n"\n')
+    refs, queries, values, pvalue = mash.dist(tmp_path / 'all.msh', tmp_path / 'new.msh')
+    assert refs == ['A', 'C'] and queries == ['C'] and values.tolist() == [[0.1], [0.0]] and pvalue == 0.02
+
+
+@pytest.mark.parametrize('script, message', [
+    ('echo "ERROR: bad sketch" >&2\nexit 1', 'dist failed(.|\n)*bad sketch'),
+    ('printf "A\\tC\\t0.1\\t0\\t5/10\\nC\\tD\\t0\\t0\\t10/10\\n"', 'Incomplete'),  # A-D and C-C missing
+])
+def test_mash_dist_errors(fake_mash, tmp_path, script, message):
+    from genome_comparator import mash
+    fake_mash.write_text('#!/bin/sh\n{}\n'.format(script))
+    with pytest.raises(MashError, match=message):
+        mash.dist(tmp_path / 'all.msh', tmp_path / 'new.msh')

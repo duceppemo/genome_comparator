@@ -28,9 +28,11 @@ evolution) with optional bootstrap support, and an interactive PCoA plot.
 
 ## Features
 * **Assemblies or reads**: fasta or fastq (gzipped or not), paired-end reads combined per sample.
-* **Fast and scalable**: thousands of genomes; sketches are computed in parallel and reused between runs.
+* **Fast and scalable**: thousands of genomes; sketches are computed in parallel, and adding genomes to an existing
+  run only sketches them and measures their distances.
 * **Trees**: UPGMA, neighbour joining and minimum evolution, with optional **bootstrap support**.
 * **Clusters** at any distance thresholds, e.g. species (~95% ANI) or near-identical strains.
+* **iTOL annotations**: colour strips for the metadata and clusters, to drag and drop on the trees.
 * **Interactive PCoA** with metadata on hover and colourblind-friendly colouring by any metadata column.
 * **Safe by default**: ambiguous sample names and unreadable files are reported, never silently merged or ignored.
 

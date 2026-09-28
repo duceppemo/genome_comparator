@@ -19,6 +19,12 @@ genome-comparator -i /input/folder/ -o /output/folder/ -t 48 --nj --pcoa
 * Files that Mash cannot read are reported, flagged as `failed` in `sample_stats.tsv` and left out of the analysis.
 * At least 3 samples are required.
 
+### Options that go together
+* `--color-by` needs `--pcoa`, and a column of the `--metadata` file or a cluster column from `--clusters`
+  (`cluster_0.05` for `--clusters 0.05`).
+* `--metadata` is used by `--pcoa` and `--itol`.
+* `--itol` needs `--metadata` or `--clusters`: they provide the columns.
+
 ## Options
 ```
   -i, --input           Folder containing the fasta or fastq files (searched recursively)
@@ -43,17 +49,30 @@ Trees and ordination:
                         very large datasets
   --pcoa, --pca         Also run a principal coordinates analysis (PCoA) and save an interactive plot
   --metadata            Tab-separated file (first column = sample name) shown when hovering over
-                        PCoA points
-  --color-by            Metadata column used to colour the PCoA points
+                        PCoA points and saved as iTOL files
+  --color-by            Metadata or cluster column (e.g. cluster_0.05) used to colour the PCoA points
   --clusters DISTANCE   Also group the samples into clusters at one or more distance thresholds
                         (single linkage) and save a table with one column per threshold
+  --itol                Also save one iTOL annotation file (colour strip) per metadata and cluster
+                        column
 ```
 Run `genome-comparator -h` for the full help.
 
-## Reusing sketches
+## Reusing sketches and distances
 Sketches are kept in `<output>/sketches/` and reused on the next run into the same output folder if the input
-files, k-mer size, sketch size and `--min-copies` did not change. Adding a few genomes to a large dataset therefore
-only sketches the new ones. Use `--force` to sketch everything again, or `--clean` to delete the sketches at the end.
+files, k-mer size, sketch size and `--min-copies` did not change.
+
+Distances are reused too. When genomes were only **added** since the last run, the distances between the other
+genomes are read back from `all_dist.tsv` and only those of the new genomes are measured (`mash dist` of the new
+genomes against all of them). Adding 10 genomes to 5,000 measures 50,000 distances instead of 12.5 million. The
+matrix is exactly the same as when measuring everything again. All the distances are measured again if:
+* a genome was removed, or its files changed (it is sketched again),
+* the k-mer size, sketch size or `--min-copies` changed,
+* `all_dist.tsv` was modified since the last run,
+* `--force` is used.
+
+Which sketches the matrix was made from is saved in `sketches/distances.json`. Use `--force` to sketch and measure
+everything again, or `--clean` to delete the sketches at the end (the next run then starts from scratch).
 
 ## Choosing parameters
 * **k-mer size**: 21 works well for bacterial genomes. Larger values are more specific but more sensitive to
@@ -84,6 +103,11 @@ genome-comparator -i assemblies/ -o results/ --nj --me --bootstrap 100
 Species-level (~95% ANI) and strain-level clusters, see [Clusters](Output-files#clusters):
 ```
 genome-comparator -i assemblies/ -o results/ --clusters 0.001 0.05
+```
+
+Trees annotated with the metadata and the clusters in [iTOL](https://itol.embl.de/):
+```
+genome-comparator -i assemblies/ -o results/ --nj --metadata metadata.tsv --clusters 0.05 --itol
 ```
 
 Matrix for another tree program (e.g. [rapidNJ](https://github.com/somme89/rapidNJ)):

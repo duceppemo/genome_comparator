@@ -7,8 +7,8 @@ from assemblies (fasta) or raw sequencing reads (fastq). It uses [Mash](https://
 pairwise distances, then builds trees (UPGMA, neighbour joining, minimum evolution), optionally with bootstrap
 support, and an interactive PCoA plot.
 
-It scales to thousands of genomes: sketches are computed in parallel, reused between runs, and all the pairwise
-distances are computed in a single multithreaded Mash call.
+It scales to thousands of genomes: sketches are computed in parallel, all the pairwise distances are computed in a
+single multithreaded Mash call, and both are reused between runs, so adding genomes only measures what is new.
 
 ![Neighbour joining tree of 22 Listeria genomes](https://raw.githubusercontent.com/duceppemo/genome_comparator/master/assets/tree.png)
 

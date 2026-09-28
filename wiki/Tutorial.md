@@ -77,6 +77,9 @@ tree-renamer -i results/tree/all_dist_nj.nwk -o nj_named.nwk -r rename.tsv
 Open `nj_named.nwk` in [FigTree](http://tree.bio.ed.ac.uk/software/figtree/) or [iTOL](https://itol.embl.de/).
 NJ and ME trees are unrooted: root them on the midpoint or on an outgroup in the viewer.
 
+To colour the tips by species in iTOL, add `--itol` to the command of step 2: drag and drop
+`results/tree/all_dist_itol_species.txt` on `all_dist_nj.nwk` (the tree with the original names).
+
 ## 7. Add bootstrap support
 ```
 genome-comparator -i genomes -o results -t 8 --nj --me --pcoa --metadata metadata.tsv --color-by species --bootstrap 100

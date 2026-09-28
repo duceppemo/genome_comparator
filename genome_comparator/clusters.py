@@ -26,7 +26,8 @@ def single_linkage_clusters(df, threshold):
     members = pd.Series(df.index, index=df.index).groupby(labels).agg(list)
     order = sorted(members, key=lambda names: (-len(names), min(names)))
     number = {name: i for i, names in enumerate(order, 1) for name in names}
-    return pd.Series([number[name] for name in df.index], index=df.index, name=column_name(threshold))
+    # Nullable integers stay integers when missing values appear (e.g. joined with metadata of other samples)
+    return pd.Series([number[name] for name in df.index], index=df.index, name=column_name(threshold), dtype='Int64')
 
 
 def cluster_table(df, thresholds):
@@ -36,6 +37,12 @@ def cluster_table(df, thresholds):
     :return: pandas DataFrame indexed by sample name
     """
     return pd.concat([single_linkage_clusters(df, t) for t in sorted(set(thresholds))], axis=1)
+
+
+def without_singletons(column):
+    """Cluster numbers of the samples that share their cluster with other samples; missing values for the others."""
+    sizes = column.map(column.value_counts())
+    return column.where(sizes > 1)
 
 
 def summary(column):

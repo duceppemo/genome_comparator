@@ -4,7 +4,7 @@
 Build the same trees and PCoA plot as `genome-comparator` from any square distance matrix.
 ```
 dendrogram-from-matrix -i matrix.tsv -o out/ [--linkage average] [--nj] [--me] [--pcoa]
-                       [--metadata metadata.tsv] [--color-by COLUMN] [--clusters DISTANCE ...]
+                       [--metadata metadata.tsv] [--color-by COLUMN] [--clusters DISTANCE ...] [--itol]
 ```
 * Input: `.tsv`, `.csv`, `.xlsx` or `.xls`. The first row and first column hold the sample names.
 * The matrix must be square, symmetric, complete and non-negative. Rows and columns may be in any order.

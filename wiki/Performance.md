@@ -12,7 +12,8 @@ Both runs used the default k-mer size (21) and sketch size (10,000), with `--nj 
   reused on the next run into the same output folder, so adding genomes to an existing dataset only sketches the new
   ones.
 * **Distances** (`mash triangle`) are multithreaded and take seconds for hundreds of genomes. The number of pairs grows
-  with the square of the number of genomes.
+  with the square of the number of genomes. When genomes are added to an existing output folder, only the distances
+  of the new genomes are measured (see [Reusing sketches and distances](Usage#reusing-sketches-and-distances)).
 * **Bootstrap**: each replicate re-sketches all the genomes, so N replicates take about N times the sketching time.
 
 ## Tree building and PCoA
@@ -34,6 +35,6 @@ Time to build each tree from an existing distance matrix (random distances, one 
 
 ## Tips
 * Use `-t` to match the CPUs you have (default: all available CPUs, respecting SLURM and other CPU limits).
-* Keep the output folder between runs to reuse sketches; use `--clean` only when you are done.
+* Keep the output folder between runs to reuse sketches and distances; use `--clean` only when you are done.
 * Increase `--sketch-size` only if you need a finer resolution between very close genomes: time and disk usage grow
   with it.

@@ -1,6 +1,7 @@
 """The genome comparison pipeline: sketch -> paste -> pairwise distances -> trees / PCoA."""
 
 import csv
+import json
 import logging
 import multiprocessing
 import tempfile
@@ -12,7 +13,7 @@ from time import time
 
 import pandas as pd
 
-from . import clusters as clustering, mash, matrix, ordination, trees
+from . import clusters as clustering, itol as itol_files, mash, matrix, ordination, trees
 from .bootstrap import ROOTED_TREES, SupportCounter, node_splits
 from .samples import SampleError, find_samples
 
@@ -20,6 +21,13 @@ log = logging.getLogger(__name__)
 
 MIN_SAMPLES = 3  # Minimum number of samples to build a tree
 MAX_TREE_WORKERS = 8  # Processes building bootstrap trees in parallel
+DISTANCES_STATE = 'distances.json'  # In the sketch folder: which sketches the distance matrix was made from
+
+
+def fingerprint(path):
+    """Size and modification time of a file, to tell whether it changed since the last run."""
+    stat = Path(path).stat()
+    return [stat.st_size, stat.st_mtime_ns]
 
 
 def elapsed_time(seconds):
@@ -137,7 +145,7 @@ def add_bootstrap_support(built, replicates, linkage='average', nj=False, me=Fal
 
 
 def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pcoa=False,
-                   metadata=None, color_by=None, clusters=None, replicates=None, workers=1):
+                   metadata=None, color_by=None, clusters=None, itol=False, replicates=None, workers=1):
     """
     Build trees, the PCoA plot and the cluster table from a validated square distance matrix.
 
@@ -145,6 +153,7 @@ def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pco
     :param out_dir: folder for the result files
     :param name: prefix of the output files
     :param clusters: optional list of distance thresholds for the single linkage clusters
+    :param itol: write iTOL colour strip files for the metadata and cluster columns
     :param replicates: optional iterable of bootstrap replicate matrices
     :param workers: number of processes building the bootstrap replicate trees
     :return: list of output files
@@ -162,21 +171,14 @@ def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pco
         trees.write_newick(tree, out)
         outputs.append(out)
 
-    if pcoa:
-        with step('Running PCoA'):
-            coords, explained = ordination.pcoa(df)
-            coords_file = out_dir / '{}_PCoA.tsv'.format(name)
-            coords.to_csv(coords_file, sep='\t', index_label='sample', float_format='%.6g')
-            meta = ordination.read_metadata(metadata, color_by) if metadata else None
-            if meta is not None:
-                missing = set(df.index) - set(meta.index)
-                if missing:
-                    log.warning('%d sample(s) are missing from the metadata file (e.g. %s)',
-                                len(missing), ', '.join(sorted(missing)[:5]))
-            html_file = out_dir / '{}_PCoA.html'.format(name)
-            ordination.plot_pcoa(coords, explained, html_file, meta, color_by, title='PCoA of {}'.format(name))
-            outputs += [coords_file, html_file]
+    meta = ordination.read_metadata(metadata) if metadata else None
+    if meta is not None:
+        missing = set(df.index) - set(meta.index)
+        if missing:
+            log.warning('%d sample(s) are missing from the metadata file (e.g. %s)',
+                        len(missing), ', '.join(sorted(missing)[:5]))
 
+    table = None
     if clusters:
         table = clustering.cluster_table(df, clusters)
         for column in table:
@@ -184,6 +186,40 @@ def analyze_matrix(df, out_dir, name, linkage='average', nj=False, me=False, pco
         clusters_file = out_dir / '{}_clusters.tsv'.format(name)
         table.to_csv(clusters_file, sep='\t', index_label='sample')
         outputs.append(clusters_file)
+
+    # Cluster columns are added to the metadata: shown on hover, usable with color_by and in iTOL files
+    groups = meta
+    if table is not None:
+        if meta is None:
+            groups = table
+        else:
+            replaced = [c for c in table.columns if c in meta.columns]
+            if replaced:
+                log.warning('Metadata column(s) replaced by the clusters of this run: %s', ', '.join(replaced))
+            groups = meta.drop(columns=replaced).join(table, how='outer')
+    if color_by and (groups is None or color_by not in groups.columns):
+        raise ValueError('Column "{}" not found in the metadata or cluster columns'.format(color_by))
+
+    if pcoa:
+        with step('Running PCoA'):
+            coords, explained = ordination.pcoa(df)
+            coords_file = out_dir / '{}_PCoA.tsv'.format(name)
+            coords.to_csv(coords_file, sep='\t', index_label='sample', float_format='%.6g')
+            html_file = out_dir / '{}_PCoA.html'.format(name)
+            ordination.plot_pcoa(coords, explained, html_file, groups, color_by, title='PCoA of {}'.format(name))
+            outputs += [coords_file, html_file]
+
+    if itol and groups is not None:
+        for column in groups.columns:
+            values = groups[column].reindex(df.index)
+            if table is not None and column in table.columns:
+                values = clustering.without_singletons(values)
+            if not itol_files.worth_a_strip(values):
+                log.info('No iTOL file for column "%s": it does not group any samples', column)
+                continue
+            out = out_dir / itol_files.file_name(name, column)
+            out.write_text(itol_files.colour_strip(values, column))
+            outputs.append(out)
 
     return outputs
 
@@ -193,7 +229,7 @@ class GenomeComparator:
 
     def __init__(self, input_dir, output_dir, threads=1, kmer_size=21, sketch_size=10000, min_copies=2,
                  linkage='average', nj=False, me=False, pcoa=False, metadata=None, color_by=None, clusters=None,
-                 phylip=False, force=False, clean=False, bootstrap=0):
+                 itol=False, phylip=False, force=False, clean=False, bootstrap=0):
         self.input_dir = Path(input_dir).expanduser().resolve()
         self.output_dir = Path(output_dir).expanduser().resolve()
         self.sketch_dir = self.output_dir / 'sketches'
@@ -203,7 +239,7 @@ class GenomeComparator:
         self.sketch_size = sketch_size
         self.min_copies = min_copies
         self.tree_options = dict(linkage=linkage, nj=nj, me=me, pcoa=pcoa, metadata=metadata, color_by=color_by,
-                                 clusters=clusters)
+                                 clusters=clusters, itol=itol)
         self.phylip = phylip
         self.force = force
         self.clean = clean
@@ -243,17 +279,20 @@ class GenomeComparator:
 
         self.write_stats(samples, stats, failed, mash.info(all_msh), self.output_dir / 'sample_stats.tsv')
 
+        matrix_file = self.output_dir / 'all_dist.tsv'
+        state_file = self.sketch_dir / DISTANCES_STATE
+        fingerprints = {name: fingerprint(path) for name, path in sketches.items()}
         with step('Measuring pairwise distances'):
-            names, values, max_pvalue = mash.triangle(all_msh, self.threads)
-            df = matrix.validate(pd.DataFrame(values, index=names, columns=names))
+            df, max_pvalue = self.distances(sketches, all_msh, matrix_file, state_file, fingerprints)
         if max_pvalue is not None:
             log.info('Largest Mash p-value: %g', max_pvalue)
             if max_pvalue > 0.01:
                 log.warning('Some distances are not significant (p-value up to %g). '
                             'Samples may be unrelated or the sketch size too small.', max_pvalue)
 
-        matrix_file = self.output_dir / 'all_dist.tsv'
         matrix.write_tsv(df, matrix_file)
+        state_file.write_text(json.dumps({'sketches': fingerprints, 'matrix': fingerprint(matrix_file),
+                                          'max_pvalue': max_pvalue}))
         if self.phylip:
             matrix.write_phylip(df, self.output_dir / 'all_dist.phylip')
 
@@ -274,6 +313,63 @@ class GenomeComparator:
         for out in outputs:
             log.info('Output: %s', out)
         log.info('Done in %s', elapsed_time(time() - start_time))
+
+    def distances(self, sketches, all_msh, matrix_file, state_file, fingerprints):
+        """
+        Distance matrix of all the sketched samples. When samples were only added since the last run, the distances
+        between the other samples are read back from the previous matrix and only those of the new samples are
+        measured. Otherwise all the distances are measured.
+
+        :return: (validated distance matrix, max p-value or None)
+        """
+        previous = None if self.force else self.previous_distances(matrix_file, state_file, fingerprints)
+        if state_file.exists():
+            state_file.unlink()  # Written again once the new matrix is saved
+        if previous is None:
+            names, values, max_pvalue = mash.triangle(all_msh, self.threads)
+            return matrix.validate(pd.DataFrame(values, index=names, columns=names)), max_pvalue
+
+        old, old_pvalue = previous
+        new = sorted(set(sketches) - set(old.index))
+        if not new:
+            log.info('Reused all the distances from the previous run')
+            return old, old_pvalue
+        log.info('Reused the distances between %d samples from the previous run; measuring those of %d new '
+                 'sample(s). Use --force to measure all the distances again.', len(old), len(new))
+        with tempfile.TemporaryDirectory(dir=self.output_dir, prefix='.new_') as tmp:
+            new_msh = Path(tmp, 'new.msh')
+            mash.paste([sketches[name] for name in new], new_msh)
+            refs, queries, values, new_pvalue = mash.dist(all_msh, new_msh, self.threads)
+        names = sorted(sketches)
+        df = old.reindex(index=names, columns=names)
+        df.loc[refs, queries] = values
+        df.loc[queries, refs] = values.T
+        pvalues = [p for p in (old_pvalue, new_pvalue) if p is not None]
+        return matrix.validate(df), max(pvalues) if pvalues else None
+
+    @staticmethod
+    def previous_distances(matrix_file, state_file, fingerprints):
+        """
+        The distance matrix of the previous run, if it can be reused: it was not modified, none of its samples was
+        removed and their sketches did not change.
+
+        :return: (distance matrix, max p-value or None), or None
+        """
+        try:
+            state = json.loads(state_file.read_text())
+            if state['matrix'] != fingerprint(matrix_file):
+                return None
+            old_sketches = state['sketches']
+            if any(fingerprints.get(name) != fp for name, fp in old_sketches.items()):
+                log.info('Samples were removed or changed since the last run: measuring all the distances')
+                return None
+            df = matrix.read_matrix(matrix_file)
+            if set(df.index) != set(old_sketches):
+                return None
+            return df, state['max_pvalue']
+        except (OSError, ValueError, KeyError, TypeError, matrix.MatrixError) as e:
+            log.debug('Previous distances not reused: %s', e)
+            return None
 
     def sketch_all(self, samples):
         """Sketch all samples in parallel, one Mash process per sample."""
@@ -342,6 +438,9 @@ class GenomeComparator:
             for f in (msh, msh.with_suffix('.json')):
                 if f.exists():
                     f.unlink()
+        state_file = self.sketch_dir / DISTANCES_STATE
+        if state_file.exists():
+            state_file.unlink()
         try:
             self.sketch_dir.rmdir()
         except OSError:

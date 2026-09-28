@@ -4,6 +4,14 @@
 * New: `--clusters DISTANCE [DISTANCE ...]` groups the samples into single linkage clusters at one or more distance
   thresholds and saves them in `all_dist_clusters.tsv`, one column per threshold. Also available in
   `dendrogram-from-matrix`, for any kind of distance. See [Clusters](Output-files#clusters).
+* New: adding genomes to an existing output folder only measures the distances of the new genomes; the others are
+  read back from `all_dist.tsv`. The matrix is the same as when measuring everything again. See
+  [Reusing sketches and distances](Usage#reusing-sketches-and-distances).
+* New: `--itol` saves one [iTOL](https://itol.embl.de/) annotation file (colour strip) per metadata and cluster column,
+  to drag and drop on the trees. See [iTOL annotations](Output-files#itol-annotations).
+* New: with `--pcoa`, the cluster columns are shown on hover and can be used with `--color-by` (e.g.
+  `--color-by cluster_0.05`), with or without `--metadata`.
+* `--metadata` can also be used without `--pcoa`, with `--itol`.
 * PCoA legend: categories are sorted in "human" order, ignoring case and with numbers sorted by value (`1, 2, 10`,
   `st1, ST2, ST10`) instead of alphabetically (`1, 10, 2`). Some categories may get different colours and shapes than
   with earlier versions.

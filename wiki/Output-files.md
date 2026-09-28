@@ -6,13 +6,14 @@
 | `all_dist.phylip` | Same matrix in relaxed phylip format (`--phylip`). Spaces in names are replaced by `_`. |
 | `sample_stats.tsv` | One row per sample (see below). |
 | `all.msh` | All the sketches in a single file. Can be reused with `mash dist` or `mash screen`. |
-| `sketches/` | One sketch per sample (`.msh`) and how it was made (`.json`), reused on the next run. |
+| `sketches/` | One sketch per sample (`.msh`) and how it was made (`.json`), reused on the next run. `distances.json` records which sketches `all_dist.tsv` was made from, to reuse the distances. |
 | `tree/all_dist_hc.nwk` | Hierarchical clustering tree (UPGMA by default). |
 | `tree/all_dist_nj.nwk` | Neighbour joining tree (`--nj`). |
 | `tree/all_dist_me.nwk` | Balanced minimum evolution tree (`--me`). |
 | `tree/all_dist_PCoA.html` | Interactive PCoA plot (`--pcoa`). Self-contained, works offline. |
 | `tree/all_dist_PCoA.tsv` | PCoA coordinates of each sample on the first 3 axes (`--pcoa`). |
 | `tree/all_dist_clusters.tsv` | Cluster of each sample at each distance threshold (`--clusters`). |
+| `tree/all_dist_itol_<column>.txt` | iTOL annotation file for one metadata or cluster column (`--itol`). |
 | `genome_comparator.log` | Log of the run. |
 
 ## `sample_stats.tsv`
@@ -77,8 +78,19 @@ S4	3	2	1
   Mash: isolates a few SNPs apart may have a distance of 0 (see
   [Resolution](How-it-works#resolution-what-mash-cannot-see)).
 
-The table can be used as a metadata file to colour the PCoA by cluster, without sketching again:
-```
-dendrogram-from-matrix -i results/all_dist.tsv -o results/by_cluster --pcoa \
-    --metadata results/tree/all_dist_clusters.tsv --color-by cluster_0.05
-```
+With `--pcoa`, the cluster columns are shown when hovering over the points, and can colour them:
+`--pcoa --clusters 0.05 --color-by cluster_0.05`. With `--metadata`, both the metadata and the cluster columns are
+available. A metadata column with the same name as a cluster column (e.g. from an earlier clusters table) is replaced
+by the clusters of the current run.
+
+## iTOL annotations
+With `--itol`, one [iTOL](https://itol.embl.de/) annotation file is saved per metadata column and per cluster column,
+e.g. `tree/all_dist_itol_species.txt`. Open a tree in iTOL (upload the `.nwk` file) and drag and drop the annotation
+files on it: each one adds a coloured strip next to the tips, with a legend.
+* Colours are the same as in the PCoA plot. With more than 6 categories colours repeat, so each strip also shows its
+  category as text.
+* Columns that group nothing are skipped (the log says so): a different value for every sample, such as strain names
+  or IDs, or a cluster column where every sample is alone.
+* Samples missing from the metadata, and samples alone in their cluster, are left blank.
+* The files use the sample names: annotate the trees written by genome_comparator, not trees whose tips were renamed
+  with `tree-renamer`.

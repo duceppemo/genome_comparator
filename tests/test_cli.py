@@ -85,8 +85,10 @@ def test_threads_capped_to_available_cpus(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize('extra, message', [
-    (['--pcoa', '--color-by', 'species'], '--color-by requires --metadata'),
-    (['--metadata', 'meta.tsv'], '--metadata is only used with --pcoa'),
+    (['--pcoa', '--color-by', 'species'], 'column "species" not found. Available columns: none'),
+    (['--color-by', 'cluster_0.05', '--clusters', '0.05'], '--color-by is only used with --pcoa'),
+    (['--metadata', 'meta.tsv'], '--metadata is only used with --pcoa or --itol'),
+    (['--itol'], '--itol requires --metadata or --clusters'),
     (['--pcoa', '--metadata', 'missing.tsv'], 'missing.tsv'),
 ])
 def test_tree_arguments_checked_before_running(matrix_file, tmp_path, capsys, extra, message):
@@ -101,7 +103,7 @@ def test_color_by_unknown_column(matrix_file, tmp_path, capsys):
     argv = ['-i', str(matrix_file), '-o', str(tmp_path / 'out'), '--pcoa', '--metadata', str(meta),
             '--color-by', 'serotype']
     assert exit_code(dendrogram_main, argv) == 2
-    assert 'Column "serotype" not found' in capsys.readouterr().err
+    assert 'column "serotype" not found. Available columns: species' in capsys.readouterr().err
 
 
 def test_run_safely_reports_user_errors(caplog):
@@ -210,3 +212,45 @@ def test_dendrogram_clusters(matrix_file, tmp_path, caplog):
                      'C\t2\t2\t1',
                      'D\t3\t2\t1']
     assert 'Clusters at distance 0.03: 2 cluster(s), 2 with several samples (largest: 2 sample(s))' in caplog.text
+
+
+def test_pcoa_coloured_by_cluster_without_metadata(matrix_file, tmp_path):
+    out = tmp_path / 'out'
+    dendrogram_main(['-i', str(matrix_file), '-o', str(out), '--pcoa', '--clusters', '0.01', '0.03',
+                     '--color-by', 'cluster_0.03'])
+    html = (out / 'matrix_PCoA.html').read_text()
+    assert 'cluster_0.03' in html and 'cluster_0.01' in html  # Colour, and the other threshold on hover
+
+
+def test_metadata_and_cluster_columns_together(matrix_file, tmp_path, caplog):
+    meta = tmp_path / 'meta.tsv'
+    meta.write_text('sample\tspecies\tcluster_0.03\nA\tx\nB\tx\nC\ty\nZ\tz\n')  # Z: not in the matrix
+    out = tmp_path / 'out'
+    dendrogram_main(['-i', str(matrix_file), '-o', str(out), '--pcoa', '--metadata', str(meta),
+                     '--clusters', '0.03', '--color-by', 'cluster_0.03'])
+    assert 'replaced by the clusters of this run: cluster_0.03' in caplog.text
+    html = (out / 'matrix_PCoA.html').read_text()
+    assert 'species' in html and '"1.0"' not in html  # Cluster numbers stay integers after the join
+
+
+def test_itol_files(matrix_file, tmp_path, caplog):
+    meta = tmp_path / 'meta.tsv'
+    meta.write_text('sample\tspecies\tstrain\tsource type\nA\tx\ts1\tfood\nB\tx\ts2\tfood\nC\ty\ts3\t\n'
+                    'E\tz\ts5\tfood\n')
+    out = tmp_path / 'out'
+    dendrogram_main(['-i', str(matrix_file), '-o', str(out), '--itol', '--metadata', str(meta),
+                     '--clusters', '0.01', '0'])
+    assert sorted(f.name for f in out.glob('*_itol_*')) == ['matrix_itol_cluster_0.01.txt', 'matrix_itol_source_type.txt',
+                                                             'matrix_itol_species.txt']
+    assert 'No iTOL file for column "strain"' in caplog.text  # One value per sample
+    assert 'No iTOL file for column "cluster_0"' in caplog.text  # Every sample alone in its cluster
+
+    lines = (out / 'matrix_itol_species.txt').read_text().splitlines()
+    assert lines[0] == 'DATASET_COLORSTRIP' and 'LEGEND_LABELS\tx\ty' in lines
+    assert 'SHOW_STRIP_LABELS\t0' in lines  # Colours are unique, no need for text
+    data = lines[lines.index('DATA') + 1:]
+    assert [row.split('\t')[0] for row in data] == ['A', 'B', 'C']  # E is not in the tree, D has no metadata
+    assert data[0].split('\t')[1] == data[1].split('\t')[1] != data[2].split('\t')[1]
+
+    lines = (out / 'matrix_itol_cluster_0.01.txt').read_text().splitlines()
+    assert lines[lines.index('DATA') + 1:] == ['A\t#E69F00\t1', 'B\t#E69F00\t1']  # Singletons are left blank
