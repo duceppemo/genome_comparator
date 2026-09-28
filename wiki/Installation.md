@@ -36,14 +36,22 @@ pytest
 The end-to-end tests are skipped if `mash` is not in your `PATH`.
 
 ## Without installing
-The commands can also be run directly from the cloned folder, as long as the dependencies are available
-(the main command with `python3 -m genome_comparator`):
+The main command can also be run directly from the cloned folder, as long as the dependencies are available:
 ```
 python3 -m genome_comparator -h
-python3 dendrogram_from_distance_matrix.py -h
-python3 tree_collapser.py -h
-python3 tree_renamer.py -h
 ```
+The other tools need an installed package. From a clone, an editable install (`pip install --no-deps -e .`) is the
+closest to running from the folder: `git pull` updates the commands without reinstalling.
+
+## Updating from 0.4.7 or earlier
+The scripts at the root of the repository were removed: run the installed commands instead, with the same options.
+
+| Removed script | Command |
+|---|---|
+| `python3 mash_phylo.py` | `genome-comparator` |
+| `python3 dendrogram_from_distance_matrix.py` | `dendrogram-from-matrix` |
+| `python3 tree_collapser.py` | `tree-collapser` |
+| `python3 tree_renamer.py` | `tree-renamer` |
 
 ## Updating from 0.4.3 or earlier
 The main command was renamed from `mash-phylo` to `genome-comparator` in version 0.4.4, with the same options.
