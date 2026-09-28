@@ -12,6 +12,8 @@
 * New: with `--pcoa`, the cluster columns are shown on hover and can be used with `--color-by` (e.g.
   `--color-by cluster_0.05`), with or without `--metadata`.
 * `--metadata` can also be used without `--pcoa`, with `--itol`.
+* Changed: tree labels are quoted only when needed (spaces or Newick special characters), as most tree programs do.
+  iTOL kept the quotes as part of the names, so its annotation files did not match the trees.
 * PCoA legend: categories are sorted in "human" order, ignoring case and with numbers sorted by value (`1, 2, 10`,
   `st1, ST2, ST10`) instead of alphabetically (`1, 10, 2`). Some categories may get different colours and shapes than
   with earlier versions.

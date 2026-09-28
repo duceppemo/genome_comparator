@@ -1,5 +1,7 @@
 """Build trees from distance matrices and read/write them in Newick format."""
 
+import re
+
 import numpy as np
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
@@ -45,9 +47,21 @@ def read_newick(path):
     return tree
 
 
-def quote(name):
-    """Always single-quote labels so any character is allowed. Single quotes are escaped by doubling them."""
-    return "'{}'".format(str(name).replace("'", "''"))
+# Characters allowed in unquoted labels. Anything else (spaces, Newick punctuation, quotes) needs quoting.
+SAFE_LABEL = re.compile(r'[\w.|/+\-#@%&*!?=~]+')
+NUMBER = re.compile(r'[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?')
+
+
+def quote(name, internal=False):
+    """
+    Single-quote a label only when Newick requires it, as most tree programs do: some viewers (e.g. iTOL) keep the
+    quotes as part of the name. Single quotes are escaped by doubling them. Internal node names that look like numbers
+    are also quoted, so they are not read as support values.
+    """
+    name = str(name)
+    if SAFE_LABEL.fullmatch(name) and not (internal and NUMBER.fullmatch(name)):
+        return name
+    return "'{}'".format(name.replace("'", "''"))
 
 
 def format_length(length):
@@ -57,7 +71,8 @@ def format_length(length):
 def to_newick(tree):
     """
     Serialize a tree in Newick format.
-    Iterative (no recursion limit on huge trees) and all labels are quoted, which scikit-bio's writer does not do.
+    Iterative (no recursion limit on huge trees), and labels are quoted when needed, which scikit-bio's writer does not
+    do.
     Internal nodes with a "support" value (bootstrap) get it as an unquoted label.
     """
     parts = list()
@@ -71,7 +86,7 @@ def to_newick(tree):
         if item.children and getattr(item, 'support', None) is not None:
             label = str(item.support)  # Unquoted so tree viewers read it as a support value
         elif item.name is not None:
-            label = quote(item.name)
+            label = quote(item.name, internal=bool(item.children))
         else:
             label = ''
         if item is not tree:

@@ -129,12 +129,14 @@ def test_hc_tree_keeps_small_branch_lengths():
     assert tree.find('A').distance(tree.find('B')) == pytest.approx(.002)
 
 
-def test_newick_quotes_all_labels():
-    tree = TreeNode.read(io.StringIO("(('it''s x':0.1,'a,b':0.2):0.3,c_d:0.4);"), convert_underscores=False)
-    nwk = trees.to_newick(tree)
-    assert nwk == "(('it''s x':0.1,'a,b':0.2):0.3,'c_d':0.4);\n"
-    back = TreeNode.read(io.StringIO(nwk), convert_underscores=False)
-    assert sorted(t.name for t in back.tips()) == sorted(["it's x", 'a,b', 'c_d'])
+def test_newick_quotes_labels_only_when_needed():
+    nwk = "((('it''s x':0.1,'a,b':0.2)'95':0.3,GCF_000008285.1:0.4)clade_A:0.1,'001':0.2,'a:b':0.1);"
+    tree = TreeNode.read(io.StringIO(nwk), convert_underscores=False)
+    out = trees.to_newick(tree)
+    # "95" is an internal name that looks like a number: kept quoted so it is not read as a support value
+    assert out == "((('it''s x':0.1,'a,b':0.2)'95':0.3,GCF_000008285.1:0.4)clade_A:0.1,001:0.2,'a:b':0.1);\n"
+    back = TreeNode.read(io.StringIO(out), convert_underscores=False)
+    assert sorted(t.name for t in back.tips()) == sorted(["it's x", 'a,b', 'GCF_000008285.1', '001', 'a:b'])
 
 
 def test_newick_deep_tree_has_no_recursion_limit():
@@ -189,7 +191,7 @@ def test_support_counter():
     counter.assign()
     supports = {frozenset(t.name for t in n.tips()): n.support for n in ref.non_tips()}
     assert supports == {frozenset('AB'): 50, frozenset('ABC'): 100, frozenset('DE'): 100}
-    assert trees.to_newick(ref) == "((('A','B')50,'C')100,('D','E')100);\n"
+    assert trees.to_newick(ref) == "(((A,B)50,C)100,(D,E)100);\n"
 
 
 def test_bootstrap_support_in_parallel():
@@ -369,7 +371,7 @@ def test_support_values_survive_read_write(tmp_path):
     path = tmp_path / 't.nwk'
     path.write_text("(('A':0.1,'B':0.1)95:0.2,'C':0.3,'D':0.1);\n")
     tree = trees.read_newick(path)
-    assert trees.to_newick(tree) == "(('A':0.1,'B':0.1)95:0.2,'C':0.3,'D':0.1);\n"
+    assert trees.to_newick(tree) == "((A:0.1,B:0.1)95:0.2,C:0.3,D:0.1);\n"
     collapse(tree, 0.5)  # Collapsed clades become tips named after their tips, not after their support
     assert "'A {B}'" in trees.to_newick(tree)
 

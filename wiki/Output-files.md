@@ -28,8 +28,9 @@
 | `status` | `ok` or `failed` | `ok` or `failed` |
 
 ## Trees
-* Tip labels are always single-quoted so sample names can contain any character. Single quotes in names are doubled
-  (`'it''s'`), as the Newick standard requires.
+* Tip labels are written as is (`GCF_000008285.1`). Names with spaces or Newick special characters
+  (`( ) [ ] ' : ; ,`) are single-quoted, with single quotes doubled (`'it''s'`), as the Newick standard requires.
+  Underscores are kept: some viewers show them as spaces, but the name is unchanged.
 * Branch lengths are Mash distances. In the `_hc` tree, branch lengths are half the merge heights, so the distance
   between two tips along the tree matches the clustering distance.
 * NJ and minimum evolution trees are unrooted. Negative branch lengths from NJ are set to 0.
@@ -94,3 +95,5 @@ files on it: each one adds a coloured strip next to the tips, with a legend.
 * Samples missing from the metadata, and samples alone in their cluster, are left blank.
 * The files use the sample names: annotate the trees written by genome_comparator, not trees whose tips were renamed
   with `tree-renamer`.
+* iTOL does not read quoted names: samples whose names contain spaces or Newick special characters (see
+  [Trees](#trees)) are not matched. Rename those files before the run, e.g. with `_` instead of spaces.
