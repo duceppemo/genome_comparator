@@ -367,3 +367,61 @@ def test_xls_without_xlrd(tmp_path, monkeypatch):
     monkeypatch.setattr(pd, 'read_excel', missing)
     with pytest.raises(matrix.MatrixError, match='xlrd'):
         matrix.read_matrix(tmp_path / 'm.xls')
+
+
+@pytest.mark.parametrize('version', ['1.1', 'unknown'])
+def test_mash_version_too_old(fake_mash, version):
+    from genome_comparator import mash
+    fake_mash.write_text('#!/bin/sh\necho {}\n'.format(version))
+    with pytest.raises(MashError, match='version 2 or later'):
+        mash.check_mash()
+
+
+def test_mash_command_failure_shows_stderr(fake_mash):
+    from genome_comparator import mash
+    fake_mash.write_text('#!/bin/sh\necho "ERROR: bad file" >&2\nexit 1\n')
+    with pytest.raises(MashError, match='exit code 1(.|\n)*bad file'):
+        mash.run(['mash', 'info', 'x.msh'])
+
+
+def test_mash_triangle_failure_reported_before_parse_error(fake_mash, tmp_path):
+    from genome_comparator import mash
+    fake_mash.write_text('#!/bin/sh\necho "ERROR: sketch is corrupt" >&2\nexit 1\n')
+    with pytest.raises(MashError, match='triangle failed(.|\n)*corrupt'):
+        mash.triangle(tmp_path / 'all.msh')
+
+
+def test_mash_triangle_malformed_output(fake_mash, tmp_path):
+    from genome_comparator import mash
+    fake_mash.write_text('#!/bin/sh\nprintf "\\t2\\nA\\nB\\t0.1\\nC\\t0.2\\t0.3\\n"\n')  # One row too many
+    with pytest.raises(MashError, match='Malformed'):
+        mash.triangle(tmp_path / 'all.msh')
+
+
+def test_mash_triangle_pvalue(fake_mash, tmp_path):
+    from genome_comparator import mash
+    fake_mash.write_text('#!/bin/sh\nprintf "\\t2\\nA\\nB\\t0.1\\n"\necho "Max p-value: 0.02" >&2\n')
+    names, values, pvalue = mash.triangle(tmp_path / 'all.msh')
+    assert names == ['A', 'B'] and values[0, 1] == values[1, 0] == 0.1 and pvalue == 0.02
+
+
+def test_parse_triangle_empty():
+    with pytest.raises(MashError, match='Unexpected'):
+        parse_triangle([])
+
+
+@pytest.mark.parametrize('filename, content, message', [
+    ('m.json', '{}', 'Invalid input file type'),
+    ('m.csv', '\n', 'empty'),
+])
+def test_read_matrix_rejects(tmp_path, filename, content, message):
+    path = tmp_path / filename
+    path.write_text(content)
+    with pytest.raises(matrix.MatrixError, match=message):
+        matrix.read_matrix(path)
+
+
+def test_read_matrix_csv(tmp_path):
+    path = tmp_path / 'm.csv'
+    path.write_text(',B,A\nB,0,0.1\nA,0.1,0\n')
+    assert list(matrix.read_matrix(path).index) == ['A', 'B']

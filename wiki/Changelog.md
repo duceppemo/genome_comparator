@@ -5,6 +5,10 @@
   `tree_collapser.py`, `tree_renamer.py`). Use the installed commands instead (`genome-comparator`,
   `dendrogram-from-matrix`, `tree-collapser`, `tree-renamer`), with the same options; see
   [Installation](Installation#updating-from-047-or-earlier). `python3 -m genome_comparator` still works from a clone.
+* Fixed: an empty `.csv` or `.tsv` matrix given to `dendrogram-from-matrix` gave an unclear error ("No columns to
+  parse from file"); the error now names the empty file.
+* More tests, for the `dendrogram-from-matrix`, `tree-collapser` and `tree-renamer` commands and for Mash errors
+  (test coverage 85% → 98%).
 
 ## 0.4.7 (2026-09-23)
 * Fixed: `dendrogram-from-matrix` failed on matrices whose sample names look like numbers (`001`, `1e3`): they were

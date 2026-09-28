@@ -27,15 +27,16 @@ def read_matrix(path):
         except ImportError:
             raise MatrixError('Reading "{}" files requires an extra package: install it with '
                               '"conda install -c conda-forge xlrd", or save the file as .xlsx or .tsv'.format(ext))
-    elif ext == '.csv':
-        df = pd.read_csv(path, header=0, dtype=str)
-    elif ext in ('.tsv', '.txt', '.tab'):
-        df = pd.read_csv(path, header=0, sep='\t', dtype=str)
+    elif ext in ('.csv', '.tsv', '.txt', '.tab'):
+        try:
+            df = pd.read_csv(path, header=0, sep=',' if ext == '.csv' else '\t', dtype=str)
+        except pd.errors.EmptyDataError:
+            raise MatrixError('Distance matrix "{}" is empty'.format(path))
     else:
         raise MatrixError('Invalid input file type "{}". The distance matrix must be in Excel '
                           '(".xlsx" or ".xls") or text format (".csv" or ".tsv")'.format(ext))
     if df.shape[1] == 0:
-        raise MatrixError('Distance matrix is empty')
+        raise MatrixError('Distance matrix "{}" is empty'.format(path))
     return validate(df.set_index(df.columns[0]))
 
 

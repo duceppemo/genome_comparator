@@ -97,3 +97,56 @@ def test_too_few_samples_exits_with_error(tmp_path):
     with pytest.raises(SystemExit) as e:
         main(['-i', str(tmp_path), '-o', str(tmp_path / 'out')])
     assert e.value.code == 1
+
+
+def test_sketches_pasted_in_chunks(genomes, tmp_path, monkeypatch):
+    from genome_comparator import mash
+    monkeypatch.setattr(mash, 'PASTE_CHUNK_SIZE', 2)  # 5 sketches: 3 chunks, then 2 chunks, then the final file
+    out = tmp_path / 'out'
+    main(['-i', str(genomes), '-o', str(out), '-t', '2', '-s', '1000'])
+    df = pd.read_csv(out / 'all_dist.tsv', sep='\t', index_col=0)
+    assert list(df.index) == ['A', 'B', 'C', 'Iso_R10', 'R']
+    assert not list(out.glob('.paste_*'))
+
+
+def test_corrupted_sketch_metadata_is_sketched_again(genomes, tmp_path, caplog):
+    out = tmp_path / 'out'
+    main(['-i', str(genomes), '-o', str(out), '-t', '2', '-s', '1000'])
+    (out / 'sketches' / 'A.json').write_text('{not json')
+    caplog.clear()
+    main(['-i', str(genomes), '-o', str(out), '-t', '2', '-s', '1000'])
+    assert 'Reused 4 existing sketch(es)' in caplog.text
+
+
+def test_clean_keeps_other_files(genomes, tmp_path):
+    out = tmp_path / 'out'
+    (out / 'sketches').mkdir(parents=True)
+    (out / 'sketches' / 'notes.txt').write_text('mine')
+    main(['-i', str(genomes), '-o', str(out), '-t', '2', '-s', '1000', '--clean'])
+    assert [f.name for f in (out / 'sketches').iterdir()] == ['notes.txt']
+
+
+def test_unrelated_genome_warns_about_pvalue(genomes, tmp_path, caplog):
+    folder = tmp_path / 'in'
+    shutil.copytree(genomes, folder)
+    rng = random.Random(2)
+    (folder / 'Unrelated.fasta').write_text('>u\n{}\n'.format(''.join(rng.choice('ACGT') for _ in range(50000))))
+    main(['-i', str(folder), '-o', str(tmp_path / 'out'), '-t', '2', '-s', '1000'])
+    assert 'not significant' in caplog.text
+
+
+def test_missing_input_folder(tmp_path, caplog):
+    with pytest.raises(SystemExit) as e:
+        main(['-i', str(tmp_path / 'none'), '-o', str(tmp_path / 'out')])
+    assert e.value.code == 1
+    assert 'does not exist' in caplog.text
+
+
+def test_too_few_samples_sketched(tmp_path, caplog):
+    (tmp_path / 'A.fasta').write_text('>a\nACGTACGTACGTACGTACGTACGTACGT\n')
+    for name in ('B', 'C'):
+        (tmp_path / '{}.fasta'.format(name)).write_text('not a fasta file\n')
+    with pytest.raises(SystemExit) as e:
+        main(['-i', str(tmp_path), '-o', str(tmp_path / 'out')])
+    assert e.value.code == 1
+    assert 'Only 1 sample(s) could be sketched' in caplog.text
