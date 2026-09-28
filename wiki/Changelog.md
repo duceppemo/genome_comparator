@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-09-28)
 * New: `--clusters DISTANCE [DISTANCE ...]` groups the samples into single linkage clusters at one or more distance
   thresholds and saves them in `all_dist_clusters.tsv`, one column per threshold. Also available in
   `dendrogram-from-matrix`, for any kind of distance. See [Clusters](Output-files#clusters).
